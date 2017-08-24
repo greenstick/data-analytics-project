@@ -2,8 +2,11 @@
 
 ```{r}
 
+set.seed(111)
+
 # Load R Data
 analytics.table <- readRDS("data/analytics.rdata")
+# analytics.table$LACE_sum <- as.factor(analytics.table$LACE_sum)
 
 # First, Partition The Data
 data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
@@ -21,7 +24,7 @@ message(nrow(data.valid), " Rows in Validation Set")
 # How Well Does Just The LACE Sum Do?
 formula <- as.formula("readmit_30 ~ LACE_sum")
 model.readmit30.lacesum <- glm(formula, data = data.train, family = "binomial")
-print(summary(model.readmit30.lacesum ))
+print(summary(model.readmit30.lacesum))
 
 # How About The Individual L, A, C, & E?
 formula <- as.formula("readmit_30 ~ L + A + C + E")
@@ -57,72 +60,103 @@ hist(model.readmit30.l_a_c_e.probabilities)
 # > fnr
 # > sensitivity
 # > specificity
-# bestThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.05) {
-# 	statistics <- list(
-# 		"n" = vector(),
-# 		"tpr" = vector(),
-# 		"fpr" = vector(),
-# 		"tnr" = vector(),
-# 		"fnr" = vector(),
-# 		"ppv" = vector(),
-# 		"npv" = vector(),
-# 		"sensitivity" = vector(),
-# 		"specificity" = vector(),
-# 		"accuracy" = vector()
-# 	)
-# 	m1 <- m1
-# 	m2 <- quote(m2)
-# 	report <- list()
-# 	thresholds <- seq(0.0, 1.0, by = by)
-# 	truth <- data[, dependent]
-# 	# Iterate Through Thresholds & Find Best Threshold
-# 	for (threshold in thresholds) {
-# 		probabilities <- predict(model, data, type = "response")
-# 		truth <- data[, dependent]
-# 		predict <- ifelse(probabilities < threshold, 0, 1)
-# 		u <- union(truth, predict)
-# 		predictions <- table(factor(truth, u), factor(predict, u))
-# 	 	n <- sum(predictions)
-# 	 	tp <- predictions[1, 1]
-# 	 	tn <- predictions[2, 2]
-# 	 	fp <- predictions[1, 2]
-# 	 	fn <- predictions[2, 1]
-# 	 	positive <- tp + tn
-# 	 	negative <- fp + fn
-# 	 	# Generate Statistics
-# 	 	statistics["n"] <- n
-# 		statistics["tp"] <- append(statistics["tp"], tp, length(statistics["tp"]))
-# 		statistics["tn"] <- append(statistics["tn"], tn, length(statistics["tn"]))
-# 		statistics["fp"] <- append(statistics["fp"], fp, length(statistics["fp"]))
-# 		statistics["fn"] <- append(statistics["fn"], fn, length(statistics["fn"]))
-# 		statistics["positive"] <- append(statistics["positive"], tp + tn, length(statistics["positive"]))
-# 		statistics["negative"] <- append(statistics["negative"], fp + fn, length(statistics["negative"]))
-# 		statistics["accuracy"] <- append(statistics["accuracy"], positive / n, length(statistics["accuracy"]))
-# 		statistics["ppv"] <- append(statistics["ppv"], tp / (tp + fp), length(statistics["ppv"]))
-# 		statistics["npv"] <- append(statistics["npv"], tn / (tn + fn), length(statistics["npv"]))
-# 		statistics["tpr"] <- append(statistics["tpr"], tp / positive, length(statistics["tpr"]))
-# 		statistics["tnr"] <- append(statistics["tnr"], tn / negative, length(statistics["tnr"]))
-# 		statistics["fpr"] <- append(statistics["fpr"], fp / negative, length(statistics["fpr"]))
-# 		statistics["fnr"] <- append(statistics["fnr"], fn / positive, length(statistics["fnr"]))
-# 		statistics["sensitivity"] <- append(statistics["sensitivity"], tp / positive, length(statistics["sensitivity"]))
-# 		statistics["specificity"] <- append(statistics["specificity"], tn / negative, length(statistics["specificity"]))
-# 	}
-# 	report["index"] <- which.max(statistics[[m1]] + statistics[[m2]])
-	# report["threshold"] <- thresholds[report["index"]]
-	# report["accuracy"] <- statistics["accuracy"][report["index"]]
-	# report[[m1]] <- statistics[[m1]][report["index"]]
-	# report[[m2]] <- statistics[[m2]][report["index"]]
-	# report
-	# print()
-# }
+bestThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
+	
+	truth <- data[, dependent]
+	thresholds <- seq(0.0, 1.0, by = by)
+	nThresholds <- length(thresholds)
+	l <- rep(1, nThresholds)
+	n <- dim(data)[1]
+	statistics <- list(
+		"tpr" = l,
+		"fpr" = l,
+		"tnr" = l,
+		"fnr" = l,
+		"ppv" = l,
+		"npv" = l,
+		"sensitivity" = l,
+		"specificity" =l,
+		"accuracy" = l,
+		"positive" = l,
+		"negative" = l,
+		"correct" = l,
+		"incorrect" = l
+	)
+	report <- list()
+	# Iterate Through Thresholds & Find Best Threshold
+	for (i in 1:nThresholds) {
+		threshold <- thresholds[i]
+		probabilities <- predict(model, data, type = "response")
+		predict <- ifelse(probabilities < threshold, 0, 1)
+		u <- union(truth, predict)
+		predictions <- table(factor(predict, u), factor(truth, u))
+	 	tp <- predictions[1, 1]
+	 	tn <- predictions[2, 2]
+	 	fp <- predictions[1, 2]
+	 	fn <- predictions[2, 1]
+	 	positive <- tp + tn
+	 	negative <- fp + fn
+	 	# Generate Statistics
+	 	statistics$thresholds <- thresholds
+		statistics$tp[i] <- tp
+		statistics$tn[i] <- tn
+		statistics$fp[i] <- fp
+		statistics$fn[i] <- fn
+		statistics$positive[i] <- (tp + fn)
+		statistics$negative[i] <- (tn + fp)
+		statistics$correct[i] <- (tp + tn)
+		statistics$incorrect[i] <- (fp + fn)
+		statistics$accuracy[i] <- ((tp + tn) / n)
+		statistics$ppv[i] <- (tp / (tp + fp))
+		statistics$npv[i] <- (tn / (tn + fn))
+		statistics$tpr[i] <- (tp / (tp + fn))
+		statistics$tnr[i] <- (tn / (tn + fp))
+		statistics$fpr[i] <- (fp / (fp + tn))
+		statistics$fnr[i] <- (fn / (fn + tp))
+		statistics$sensitivity[i] <- (tp / (tp + fn))
+		statistics$specificity[i] <- (tn / (tn + fp))
+	}
+	report["index"] <- which.max(statistics[[m1]] + statistics[[m2]])
+	report["threshold"] <- thresholds[report[["index"]]]
+	report["accuracy"] <- statistics[["accuracy"]][report[["index"]]]
+	report["correct"] <- statistics[["correct"]][report[["index"]]]
+	report["incorrect"] <- statistics[["incorrect"]][report[["index"]]]
+	report[[m1]] <- statistics[[m1]][report[["index"]]]
+	report[[m2]] <- statistics[[m2]][report[["index"]]]
+	report["n"] <- n
+	result <- list(
+		report = report,
+		stats = statistics
+	)
+	result
+}
 
-# optimal <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+# Get Optimal From model.readmit30.l_a_c_e
+optimal <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
 
-# message("Threshold: ", optimal["threshold"])
-# message("Accuracy: ", optimal["accuracy"])
-# message("Sensitivity: ", optimal["sensitivity"])
-# message("Specificity: ", optimal["specificity"])
-# message("Positive: ", optimal["positive"])
-# message("Negative: ", optimal["negative"])
+# Output By Optimal Sum of Sensitivity And Sensitivity
+message("Threshold: ", optimal$report["threshold"])
+message("Accuracy: ", optimal$report["accuracy"])
+message("Sensitivity: ", optimal$report["sensitivity"])
+message("Specificity: ", optimal$report["specificity"])
+message("Correct: ", optimal$report["correct"])
+message("Incorrect: ", optimal$report["incorrect"])
+message("n: ", optimal$report["n"])
+
+# Plot AUC
+plot(optimal$stats[["sensitivity"]], optimal$stats[["specificity"]])
+
+# Output By Optimal Accuracy
+idx <- which.max(optimal$stats[["accuracy"]])
+message("Best Accuracy: ", optimal$stats[["accuracy"]][idx])
+message("Threshold: ", optimal$stats[["thresholds"]][idx])
+message("Correct: ", optimal$stats[["correct"]][idx])
+message("Incorrect: ", optimal$stats[["incorrect"]][idx])
+message("Sensitivity: ", optimal$stats[["sensitivity"]][idx])
+message("Specificity: ", optimal$stats[["specificity"]][idx])
+message("FPR: ", optimal$stats[["fpr"]][idx])
+message("FNR: ", optimal$stats[["fnr"]][idx])
+message("n: ", optimal$report["n"])
+
 
 ```

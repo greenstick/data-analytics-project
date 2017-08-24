@@ -26,9 +26,52 @@ library(caret)
 library(ROCR)
 
 # Global References
-seed 		<- 111
-partition 	<- 0.8
-dependent 	<- "readmit_30"
+seed 			<- 111
+partition 		<- 0.8
+dependent 		<- "readmit_30"
+database.name 	<- "patient1.sqlite" 	# Database name
+data.dir 		<- "data/raw/"			# Data file directory
+data.format 	<- ".txt"				# Data file format
+data.overwrite	<- TRUE 				# Helps on development, but not something to default to TRUE
+data.frames 	<- list()
+
+# Connect to SQLite DB
+SQLiteConnection <- dbConnect(drv = SQLite(), dbname = database.name)
+
+# Iterate Through Data Files & Load into SQLite DB - Indicate Whether Each Query is Successful or Not
+for (file in list.files(data.dir)) {
+	key 	<- sub(data.format, "", file)
+	path    <- paste(data.dir, file, sep = "")
+	val 	<- read.table(path, header = TRUE, sep = "|")
+	# Loading into DBs Can be Error Prone, Wrap It in a TryCatch For Fun
+	handle 	<- tryCatch ({
+			# Write SQLite Table from DF
+			message("Writing table: ", key)
+			dbWriteTable(conn = SQLiteConnection, name = key, value = val, overwrite = data.overwrite)
+		},
+		# Output Any Errors
+		error = function (status) {
+			message("Error writing table: ", key)
+			message(status, "\r")
+		},
+		# Output Any Warnings
+		warning = function (status) {
+			message("A warning occurred while writing table: ", key)
+			message(status, "\r")
+		},
+		# Validate Table Creation via Comparison of n SQL Table Rows to n DF Rows
+		finally = {
+			query 	<- paste("select count(*) from", key)
+			result 	<- dbGetQuery(SQLiteConnection, query)
+			valid 	<- (nrow(val) == result)[1,]
+			if (valid) {
+				message("Table validated: ", key, "\n")
+			} else {
+				message("Table invalid: ", key, "\n")
+			}
+		}
+	)
+}
 
 # Connect To DB
 SQLiteConnection <- dbConnect(drv = SQLite(), dbname = "db/patient.sqlite")
@@ -77,6 +120,9 @@ queryResult[1:10,]
 
 # Set Analytics Table To This Query Result As Starting Point
 analytics.table <- queryResult
+
+# How Many Rows Do We Have?
+message("n Rows: ", dim(analytics.table)[1])
 
 ```
 
@@ -143,6 +189,10 @@ sqlStatement <- "
 		CASE 
 			WHEN icd9code LIKE '428%'
 				OR icd9code LIKE '425.4%'
+				OR icd9code LIKE '425.5%'
+				OR icd9code LIKE '425.6%'
+				OR icd9code LIKE '425.7%'
+				OR icd9code LIKE '425.8%'
 				OR icd9code LIKE '425.9%'
 				OR icd9code LIKE '398.91'
 				OR icd9code LIKE '402.01'
@@ -156,7 +206,7 @@ sqlStatement <- "
 				OR icd9code LIKE '404.93'
 					THEN 1
 			ELSE 0
-		END AS icd9_chd,
+		END AS icd9_chf,
 	-- Asthma
 		CASE 
 			WHEN icd9code LIKE '493%'
@@ -175,8 +225,14 @@ sqlStatement <- "
 		CASE
 			WHEN
 				icd9code LIKE '331.2%'
+				OR icd9code LIKE '94.1'
 				OR icd9code LIKE '290%'
 				OR icd9code LIKE '294.1%'
+				OR icd9code LIKE '294.2%'
+				OR icd9code LIKE '294.8%'
+				OR icd9code LIKE '331.11'
+				OR icd9code LIKE '331.19'
+				OR icd9code LIKE '331.82'
 					THEN 1
 			ELSE 0
 		END AS icd9_dementia,
@@ -236,7 +292,7 @@ queryResult[1:10,]
 # Compute E
 queryResult$C <- (
 	queryResult$icd9_cad + 
-	queryResult$icd9_chd + 
+	queryResult$icd9_chf + 
 	queryResult$icd9_asthma + 
 	queryResult$icd9_hepatitis_c + 
 	queryResult$icd9_dementia + 
@@ -245,11 +301,14 @@ queryResult$C <- (
 	queryResult$icd9_pvd
 )
 
-# Merge E Into Analytics Table
-analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid")
+# Summarize Query
+summary(queryResult)
 
-# Show Updated Table
-analytics.table[1:10,]
+# Merge E Into Analytics Table
+analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
+
+# How Many Rows Do We Have?
+message("n Rows: ", dim(analytics.table)[1])
 
 ```
 
@@ -288,7 +347,7 @@ queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
 queryResult[0:10,]
 
 # Merge E Into Analytics Table
-analytics.table <- merge(analytics.table, queryResult, by = "patientid")
+analytics.table <- merge(analytics.table, queryResult, by = "patientid", all.x = TRUE)
 
 # Show Updated Table
 analytics.table[0:10,]
@@ -309,7 +368,14 @@ analytics.table$LACE_sum <- (
 	analytics.table$E
 )
 
+# Show Analytics Table
 analytics.table[1:10,]
+
+# Summarize
+summary(analytics.table)
+
+# How Many Rows Do We Have?
+message("n Rows: ", dim(analytics.table)[1])
 
 ```
 

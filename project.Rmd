@@ -1,0 +1,440 @@
+---
+title: "Problem Set 1"
+author: "Benjamin Cordier"
+date: "6/21/2017"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# Compute LACE Score
+
+## Setup
+
+```{r}
+
+# Load Libraries
+library(RSQLite)
+library(zoo)
+library(tidyverse)
+library(broom)
+library(caret)
+library(ROCR)
+
+# Global References
+seed 		<- 111
+partition 	<- 0.8
+dependent 	<- "readmit_30"
+
+# Connect To DB
+SQLiteConnection <- dbConnect(drv = SQLite(), dbname = "db/patient.sqlite")
+
+# Get patient_encounter_hosp_mod
+sqlStatement <- "SELECT * FROM patient_encounter_hosp_mod"
+pehm <- dbGetQuery(SQLiteConnection, sqlStatement)
+
+# Create Analytics Table Reference
+analytics.table <- pehm
+
+# Print Out Table
+analytics.table[1:10,]
+
+```
+
+## Problem Set 1 – L
+
+```{r}
+
+# Compute Column L - Note We Offset By -1 On Conditions Because Both Admission & Discharge Dates Count 
+sqlStatement <- "
+	SELECT PEH.*, 
+		CASE
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 0
+				THEN 1
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 1
+				THEN 2
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 2
+				THEN 3
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 2 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 6 
+				THEN 4
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 5 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 13 
+				THEN 5
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 13 
+				THEN 7
+			ELSE 0
+		END AS L
+	FROM patient_encounter_hosp_mod as PEH
+	WHERE PEH.index_admit=1
+"
+
+# Query & Verify Result
+queryResult <- dbGetQuery(SQLiteConnection, sqlStatement, overwrite = TRUE)
+queryResult[1:10,]
+
+# Set Analytics Table To This Query Result As Starting Point
+analytics.table <- queryResult
+
+```
+
+# Problem Set 1 – A
+```{r}
+
+# Compute Column A
+sqlStatement <- "
+	SELECT PEH.*, 
+		CASE
+			WHEN PEH.Admit_source = 'Emergency Room'
+				THEN 3
+			ELSE 0
+		END AS A
+	FROM patient_encounter_hosp_mod AS PEH
+	WHERE PEH.index_admit=1
+"
+
+# Query & Verify Result
+queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+queryResult[1:10,]
+
+# Append A to Analytics Table
+analytics.table$A <- queryResult$A
+
+# Show Updated Table
+analytics.table[1:10,]
+
+```
+
+## Problem Set 2 – C 
+
+```{r}
+
+# Narrow By ICD-9 Codes And Match To String
+# ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
+# Loose Weighting Scheme:
+#	CAD 		= 2
+#	CHF 		= 3
+#	Asthma 		= 1
+#	Hepatitis C = 2
+#	Dementia 	= 2
+#	Stroke 		= 3
+#	Depression 	= 1
+#	PVD 		= 2
+# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
+#
+# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
+# 	CAD
+# 	Asthma
+# 	Hepatitis C
+# 	Stroke
+
+sqlStatement <- "
+	SELECT patientid,
+	-- CAD 
+		CASE 
+			WHEN icd9code LIKE '410%'
+				AND UPPER(diagnosis_name) LIKE '%CORONARY%'
+					THEN 1
+			ELSE 0
+		END AS icd9_cad,
+	-- CHF
+		CASE 
+			WHEN icd9code LIKE '428%'
+				OR icd9code LIKE '425.4%'
+				OR icd9code LIKE '425.9%'
+				OR icd9code LIKE '398.91'
+				OR icd9code LIKE '402.01'
+				OR icd9code LIKE '402.11'
+				OR icd9code LIKE '402.91'
+				OR icd9code LIKE '404.01'
+				OR icd9code LIKE '404.03'
+				OR icd9code LIKE '404.11'
+				OR icd9code LIKE '404.13'
+				OR icd9code LIKE '404.91'
+				OR icd9code LIKE '404.93'
+					THEN 1
+			ELSE 0
+		END AS icd9_chd,
+	-- Asthma
+		CASE 
+			WHEN icd9code LIKE '493%'
+				AND UPPER(diagnosis_name) LIKE '%ASTHMA%'
+				THEN 1
+			ELSE 0
+		END AS icd9_asthma,
+	-- Hepatitis C
+		CASE
+			WHEN icd9code LIKE '070%'
+				AND UPPER(diagnosis_name) LIKE '%HEPATITIS C%'
+					THEN 1
+			ELSE 0
+		END AS icd9_hepatitis_c,
+	-- Dementia
+		CASE
+			WHEN
+				icd9code LIKE '331.2%'
+				OR icd9code LIKE '290%'
+				OR icd9code LIKE '294.1%'
+					THEN 1
+			ELSE 0
+		END AS icd9_dementia,
+	-- Stroke
+		CASE
+			WHEN (
+				icd9code LIKE '433%'
+				OR icd9code LIKE '434%'
+			) AND UPPER(diagnosis_name) LIKE '%STROKE%'
+					THEN 1
+			ELSE 0
+		END AS icd9_stroke,
+	-- Depression
+		CASE
+			WHEN 
+				icd9code LIKE '296.2%'
+				OR icd9code LIKE '296.3%'
+				OR icd9code LIKE '296.5%'
+				OR icd9code LIKE '300.4%'
+				OR icd9code LIKE '309%'
+				OR icd9code LIKE '311%'
+					THEN 1
+			ELSE 0
+		END AS icd9_depression,
+	-- PVD
+		CASE
+			WHEN 
+				icd9code LIKE '093.0%'
+				OR icd9code LIKE '437.3%'
+				OR icd9code LIKE '440.%'
+				OR icd9code LIKE '441.%'
+				OR icd9code LIKE '443.1%'
+				OR icd9code LIKE '443.2%'
+				OR icd9code LIKE '443.3%'
+				OR icd9code LIKE '443.4%'
+				OR icd9code LIKE '443.5%'
+				OR icd9code LIKE '443.6%'
+				OR icd9code LIKE '443.7%'
+				OR icd9code LIKE '443.8%'
+				OR icd9code LIKE '443.9%'
+				OR icd9code LIKE '447.1%'
+				OR icd9code LIKE '557.1%'
+				OR icd9code LIKE '557.9%'
+				OR icd9code LIKE 'V43.4%'
+					THEN 1
+			ELSE 0
+		END AS icd9_pvd
+
+	FROM patient_diagnosis AS PD
+	GROUP BY patientid
+"
+
+# Query
+queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+queryResult[1:10,]
+
+# Compute E
+queryResult$C <- (
+	queryResult$icd9_cad + 
+	queryResult$icd9_chd + 
+	queryResult$icd9_asthma + 
+	queryResult$icd9_hepatitis_c + 
+	queryResult$icd9_dementia + 
+	queryResult$icd9_stroke + 
+	queryResult$icd9_depression + 
+	queryResult$icd9_pvd
+)
+
+# Merge E Into Analytics Table
+analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid")
+
+# Show Updated Table
+analytics.table[1:10,]
+
+```
+
+## Problem Set 1 – E 
+
+```{r}
+
+# Compute Column E
+sqlStatement <- "
+	SELECT patientid, 
+		CASE
+			WHEN SUM(Emergency_department) = 0
+				THEN 0
+			WHEN SUM(Emergency_department) < 5 AND SUM(Emergency_department) > 0
+				THEN SUM(Emergency_department) - 1
+			ELSE 4
+		END AS E
+	FROM (
+		SELECT PE.*,
+			CASE
+				WHEN PE.encounter_type = 48
+					THEN 1
+				ELSE 0
+			END AS Emergency_department
+		FROM patient_encounter_hosp_mod AS PEH
+		LEFT JOIN patient_encounter AS PE
+		ON PE.patientid = PEH.patientid
+			AND PE.Outcome = 'COMPLETE'
+			AND date(PE.Actual_Date) > date(PEH.Admit_date, '-180 day')
+	)
+	GROUP BY patientid
+"
+
+# Query & Verify Result
+queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+queryResult[0:10,]
+
+# Merge E Into Analytics Table
+analytics.table <- merge(analytics.table, queryResult, by = "patientid")
+
+# Show Updated Table
+analytics.table[0:10,]
+
+# Disconnect From Database
+dbDisconnect(SQLiteConnection)
+
+```
+
+## Problem Set 2 – LACE Sum
+
+```{r}
+
+analytics.table$LACE_sum <- (
+	analytics.table$L + 
+	analytics.table$A + 
+	analytics.table$C + 
+	analytics.table$E
+)
+
+analytics.table[1:10,]
+
+```
+
+## Problem Set 2 - Let's Get Logistical
+
+```{r}
+
+# First, Partition The Data
+data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
+data.train <- analytics.table[data.train.indices, ]
+data.valid <- analytics.table[-data.train.indices, ]
+
+# Validate All Data Is In Train/Valid Partitions
+stopifnot(nrow(analytics.table) == nrow(data.train) + nrow(data.valid))
+
+# Output n Rows For Data Set & Partitions
+message(nrow(analytics.table), " Rows in Data")
+message(nrow(data.train), " Rows in Training Set")
+message(nrow(data.valid), " Rows in Validation Set")
+
+# How Well Does Just The LACE Sum Do?
+formula <- as.formula("readmit_30 ~ LACE_sum")
+model.readmit30.lacesum <- glm(formula, data = data.train, family = "binomial")
+print(summary(model.readmit30.lacesum ))
+
+# How About The Individual L, A, C, & E?
+formula <- as.formula("readmit_30 ~ L + A + C + E")
+model.readmit30.l_a_c_e <- glm(formula, data = data.train, family = "binomial")
+print(summary(model.readmit30.l_a_c_e))
+
+# What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
+model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
+step(model.readmit30.l_a_c_e_lacesum)
+
+``` 
+# Problem Set 2 – Model Analyses
+
+The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E Model (AIC = 17140).
+
+```{r}
+
+# Predict On Validation Set
+model.readmit30.l_a_c_e.probabilities <- predict(model.readmit30.l_a_c_e, data.valid, type = "response")
+
+# Insert Predicted Probabilities As Column Into Validation Set
+data.valid <- data.frame(data.valid, pprobs = model.readmit30.l_a_c_e.probabilities)
+
+# Plot Histogram of Predicted Probabilities
+hist(model.readmit30.l_a_c_e.probabilities)
+
+# Find Best Threshold By Measure Tradeoff
+# Valid Measures Are Any Two
+# > tpr
+# > tnr
+# > fpr
+# > fnr
+# > sensitivity
+# > specificity
+# bestThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.05) {
+# 	statistics <- list(
+# 		"n" = vector(),
+# 		"tpr" = vector(),
+# 		"fpr" = vector(),
+# 		"tnr" = vector(),
+# 		"fnr" = vector(),
+# 		"ppv" = vector(),
+# 		"npv" = vector(),
+# 		"sensitivity" = vector(),
+# 		"specificity" = vector(),
+# 		"accuracy" = vector()
+# 	)
+# 	m1 <- m1
+# 	m2 <- quote(m2)
+# 	report <- list()
+# 	thresholds <- seq(0.0, 1.0, by = by)
+# 	truth <- data[, dependent]
+# 	# Iterate Through Thresholds & Find Best Threshold
+# 	for (threshold in thresholds) {
+# 		probabilities <- predict(model, data, type = "response")
+# 		truth <- data[, dependent]
+# 		predict <- ifelse(probabilities < threshold, 0, 1)
+# 		u <- union(truth, predict)
+# 		predictions <- table(factor(truth, u), factor(predict, u))
+# 	 	n <- sum(predictions)
+# 	 	tp <- predictions[1, 1]
+# 	 	tn <- predictions[2, 2]
+# 	 	fp <- predictions[1, 2]
+# 	 	fn <- predictions[2, 1]
+# 	 	positive <- tp + tn
+# 	 	negative <- fp + fn
+# 	 	# Generate Statistics
+# 	 	statistics["n"] <- n
+# 		statistics["tp"] <- append(statistics["tp"], tp, length(statistics["tp"]))
+# 		statistics["tn"] <- append(statistics["tn"], tn, length(statistics["tn"]))
+# 		statistics["fp"] <- append(statistics["fp"], fp, length(statistics["fp"]))
+# 		statistics["fn"] <- append(statistics["fn"], fn, length(statistics["fn"]))
+# 		statistics["positive"] <- append(statistics["positive"], tp + tn, length(statistics["positive"]))
+# 		statistics["negative"] <- append(statistics["negative"], fp + fn, length(statistics["negative"]))
+# 		statistics["accuracy"] <- append(statistics["accuracy"], positive / n, length(statistics["accuracy"]))
+# 		statistics["ppv"] <- append(statistics["ppv"], tp / (tp + fp), length(statistics["ppv"]))
+# 		statistics["npv"] <- append(statistics["npv"], tn / (tn + fn), length(statistics["npv"]))
+# 		statistics["tpr"] <- append(statistics["tpr"], tp / positive, length(statistics["tpr"]))
+# 		statistics["tnr"] <- append(statistics["tnr"], tn / negative, length(statistics["tnr"]))
+# 		statistics["fpr"] <- append(statistics["fpr"], fp / negative, length(statistics["fpr"]))
+# 		statistics["fnr"] <- append(statistics["fnr"], fn / positive, length(statistics["fnr"]))
+# 		statistics["sensitivity"] <- append(statistics["sensitivity"], tp / positive, length(statistics["sensitivity"]))
+# 		statistics["specificity"] <- append(statistics["specificity"], tn / negative, length(statistics["specificity"]))
+# 	}
+# 	report["index"] <- which.max(statistics[[m1]] + statistics[[m2]])
+	# report["threshold"] <- thresholds[report["index"]]
+	# report["accuracy"] <- statistics["accuracy"][report["index"]]
+	# report[[m1]] <- statistics[[m1]][report["index"]]
+	# report[[m2]] <- statistics[[m2]][report["index"]]
+	# report
+	# print()
+}
+
+# optimal <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+
+# message("Threshold: ", optimal["threshold"])
+# message("Accuracy: ", optimal["accuracy"])
+# message("Sensitivity: ", optimal["sensitivity"])
+# message("Specificity: ", optimal["specificity"])
+# message("Positive: ", optimal["positive"])
+# message("Negative: ", optimal["negative"])
+
+```

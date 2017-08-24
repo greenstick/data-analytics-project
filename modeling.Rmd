@@ -2,6 +2,9 @@
 
 ```{r}
 
+# Load R Data
+analytics.table <- readRDS("data/analytics.rdata")
+
 # First, Partition The Data
 data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
 data.train <- analytics.table[data.train.indices, ]

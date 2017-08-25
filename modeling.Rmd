@@ -70,7 +70,7 @@ Seems our weighting scheme is a case study on one developed by a person lacking 
 
 # Problem Set 2 – Model Analyses
 
-```{r, fig.width = 8, fig.height = 8}
+```{r, fig.width = 6, fig.height = 6}
 
     # Predict On Validation Set
     model.readmit30.l_a_c_e.probabilities <- predict(model.readmit30.l_a_c_e, data.valid, type = "response")
@@ -226,7 +226,7 @@ Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely c
 ## For The LACE Sum Model, What Probability Threshold Maximizes The Sum of Sensitivity + Specificity?
 #### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
 
-```{r, fig.width = 8, fig.height = 8}
+```{r, fig.width = 6, fig.height = 6}
 
     # Get Optimal Probability Threshold
     optimal.lacesum <- bestThreshold(model.readmit30.lacesum, data.valid, "readmit_30", by = 0.001)
@@ -247,7 +247,7 @@ Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely c
     title(paste("ROC For readmit30 ~ LACE Sum Model (Response) (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
 
 
-    # Optimal Statistics By LACE Sum Probability Threshold
+    # Output By Optimal Sensitivity + Specificity
     message(
         "Threshold: ", optimal.lacesum$report["threshold"], "\n",
         "Correct: ", optimal.lacesum$report["correct"], "\n",
@@ -311,7 +311,7 @@ And if we wanted to clamp down on utilization in the short term, well, this mode
 
 ## For The L + A + C + E Model, What Threshold Maximizes The Sum of Sensitivity + Specificity?
 #### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
-```{r, fig.width = 8, fig.height = 8}
+```{r, fig.width = 6, fig.height = 6}
 
     # Get Optimal From model.readmit30.l_a_c_e
     optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30", by = 0.001)
@@ -327,7 +327,7 @@ And if we wanted to clamp down on utilization in the short term, well, this mode
     abline(coef = c(0, 1))
     title(paste("ROC For readmit30 ~ L + A + C + E Model (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
 
-    # Output By Optimal Sum of Sensitivity And Sensitivity
+    # Output By Optimal Sum of Sensitivity And Specificity
     message(
         "Threshold: ", optimal.l_a_c_e$report["threshold"], "\n",
         "Correct: ", optimal.l_a_c_e$report["correct"], "\n",
@@ -389,3 +389,14 @@ This is pretty good. Here I aimed to find the probability threshold that maximiz
 ```
 
 And the final configuration for this model, which maximizes the sum of accuracy + specificity. As noted previously, this is the cold blooded breed of model and this variant considers high risk patients to be those with a probability greater than or equal to 64.6% of readmission within 30 days, although at least this one gets four times the sensitivity of the comparable LACE sum model (15.02%). Accuracy is fairly high (75.18%) and specificity is very good (99.4%). 
+
+## Revisiting The Histogram
+
+```{r, fig.width = 6, fig.height = 6}
+
+    # Plot Histogram of Predicted Probabilities
+    hist(model.readmit30.l_a_c_e.probabilities)
+
+```
+
+If we look at the histogram, the model which maximizes the sum of sensitivity and specificity, with a threshold probability of 14.7% makes sense. There is a clear difference in the volume of patients below ~15% probability of readmission within 30 days and those above that threshold. There also appear to be a good number of true readmits within 30 days in the second largest bar between 10 - 15%. The probability threshold that maximizes the sum of sensitivity and accuracy (9.8%) classifies those in this bucket as high risk and yields an increase of about 21% sensitivity from doing so at a cost of decreasing specificity by 24%. 

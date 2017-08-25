@@ -40,27 +40,35 @@ output: html_document
     model.readmit30.l_a_c_e <- glm(formula, data = data.train, family = "binomial")
     print(summary(model.readmit30.l_a_c_e))
 
-    # What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+    # How About The Individual L, A, C, & E + LACE Sum?
     formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
     model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
-    step(model.readmit30.l_a_c_e_lacesum)
+    print(summary(model.readmit30.l_a_cwc_e))
 
-    # How About The Individual L, A, C_weighted, & E?
+    # How About The Individual L, A, C_weight, & E?
     formula <- as.formula("readmit_30 ~ L + A + C_weight + E")
     model.readmit30.l_a_cw_e <- glm(formula, data = data.train, family = "binomial")
     print(summary(model.readmit30.l_a_cw_e))
 
-    # What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+    # How About The Individual L, A, C_weight, & E + LAC_wE Sum?
     formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
     model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
-    print(summary(model.readmit30.l_a_cw_e))
+    print(summary(model.readmit30.l_a_cwc_e))
+
+    # How About The Individual L, A, C_weight_cut, & E?
+    formula <- as.formula("readmit_30 ~ L + A + C_weight_cut + E")
+    model.readmit30.l_a_cwc_e <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cwc_e))
+
+    # How About The Individual L, A, C_weight_cut, & E + LAC_wcE Sum?
+    formula <- as.formula("readmit_30 ~ L + A + C_weight_cut + E + LACE_sum_C_weight_cut")
+    model.readmit30.l_a_cw_e_lacesumwc <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cw_e_lacesumwc))
 
 ``` 
-Seems our weighting scheme hints at our lack of domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model.
+Seems our weighting scheme is a case study on one developed by a person lacking in domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).
 
 # Problem Set 2 – Model Analyses
-
-The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E Model (AIC = 17140).
 
 ```{r, fig.width = 8, fig.height = 8}
 
@@ -73,62 +81,10 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
     # Plot Histogram of Predicted Probabilities
     hist(model.readmit30.l_a_c_e.probabilities)
 
-    # How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
-
-    # Set Truth, n, & Predict At Threshold > 10
-    truth <- data.valid[, dependent]
-    n <- dim(data.valid)[1]
-    predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
-
-    # Compute Confusion Matrix
-    u <- union(truth, predict)
-    predictions <- table(factor(predict, u), factor(truth, u))
-    tp <- predictions[1, 1]
-    tn <- predictions[2, 2]
-    fp <- predictions[1, 2]
-    fn <- predictions[2, 1]
-
-    # Compute Statistics
-    statistics <- list()
-    statistics$n <- n
-    statistics$tp <- tp
-    statistics$tn <- tn
-    statistics$fp <- fp
-    statistics$fn <- fn
-    statistics$positive <- (tp + fn)
-    statistics$negative <- (tn + fp)
-    statistics$correct <- (tp + tn)
-    statistics$incorrect <- (fp + fn)
-    statistics$accuracy <- ((tp + tn) / n)
-    statistics$ppv <- (tp / (tp + fp))
-    statistics$npv <- (tn / (tn + fn))
-    statistics$tpr <- (tp / (tp + fn))
-    statistics$tnr <- (tn / (tn + fp))
-    statistics$fpr <- (fp / (fp + tn))
-    statistics$fnr <- (fn / (fn + tp))
-    statistics$sensitivity <- (tp / (tp + fn))
-    statistics$specificity <- (tn / (tn + fp))
-
-    # Compute ROC Curve
-    roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
-    roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
-
-    # Compute AUC
-    roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
-
-    plot(roc.performance, measure = "tpr", x.measure = "fpr")
-    title(paste("ROC For readmit30 ~ L + A + C + E Model (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
-
-    # Print Results
-    message("Accuracy: ", statistics$accuracy)
-    message("Sensitivity: ", statistics$sensitivity)
-    message("Specificity: ", statistics$specificity)
-    message("Correct: ", statistics$correct)
-    message("Incorrect: ", statistics$incorrect)
-    message("n: ", statistics$n)
-    message("AUC: ", roc.auc)
-
 ```
+
+Long tail; most patients are predicted as having a low probability of readmission within 30 days. There is a long tail of patients that have a high predicted probability. 
+
 ## First A Function Definition Then Some Questions
 ```{r}
 
@@ -140,7 +96,7 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
     # > fnr
     # > sensitivity
     # > specificity
-    maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
+    maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.01) {
         
         truth <- data[, dependent]
         thresholds <- seq(0.0, 1.0, by = by)
@@ -212,60 +168,224 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
     }
 
 ```
-## What Threshold Maximizes The Sum of Sensitivity + Specificity?
-#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+
+## How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
 
 ```{r}
 
-    # Get Optimal From model.readmit30.l_a_c_e
-    optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+    # Set Truth, n, & Predict At Threshold > 10
+    truth <- data.valid[, dependent]
+    n <- dim(data.valid)[1]
+    predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
 
-    # Plot AUC
-    plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
+    # Compute Confusion Matrix
+    u <- union(truth, predict)
+    predictions <- table(factor(predict, u), factor(truth, u))
+    tp <- predictions[1, 1]
+    tn <- predictions[2, 2]
+    fp <- predictions[1, 2]
+    fn <- predictions[2, 1]
 
-    # Output By Optimal Sum of Sensitivity And Sensitivity
-    message("Threshold: ", optimal.l_a_c_e$report["threshold"])
-    message("Accuracy: ", optimal.l_a_c_e$report["accuracy"])
-    message("Sensitivity: ", optimal.l_a_c_e$report["sensitivity"])
-    message("Specificity: ", optimal.l_a_c_e$report["specificity"])
-    message("Correct: ", optimal.l_a_c_e$report["correct"])
-    message("Incorrect: ", optimal.l_a_c_e$report["incorrect"])
-    message("n: ", optimal.l_a_c_e$report["n"])
+    # Compute Statistics
+    statistics <- list()
+    statistics$n <- n
+    statistics$tp <- tp
+    statistics$tn <- tn
+    statistics$fp <- fp
+    statistics$fn <- fn
+    statistics$positive <- (tp + fn)
+    statistics$negative <- (tn + fp)
+    statistics$correct <- (tp + tn)
+    statistics$incorrect <- (fp + fn)
+    statistics$accuracy <- ((tp + tn) / n)
+    statistics$ppv <- (tp / (tp + fp))
+    statistics$npv <- (tn / (tn + fn))
+    statistics$tpr <- (tp / (tp + fn))
+    statistics$tnr <- (tn / (tn + fp))
+    statistics$fpr <- (fp / (fp + tn))
+    statistics$fnr <- (fn / (fn + tp))
+    statistics$sensitivity <- (tp / (tp + fn))
+    statistics$specificity <- (tn / (tn + fp))
+
+    # Statistics By LACE Sum Threshold > 10
+    message(
+        "Correct: ", statistics$correct, "\n",
+        "Incorrect: ", statistics$incorrect, "\n",
+        "Accuracy: ", statistics$accuracy, "\n",
+        "Sensitivity: ", statistics$sensitivity, "\n",
+        "Specificity: ", statistics$specificity, "\n",
+        "FPR: ", statistics$fpr, "\n",
+        "FNR: ", statistics$fnr, "\n",
+        "n: ", statistics$n
+    )
 
 ```
 
-## What Threshold Maximizes The Sum of Accuracy + Sensitivity?
+Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely coming from the specificity (91.91%) and, I would assert that we may want to emphasize sensitivity over specificity in our context (i.e. flagging patients as being at high risk for readmission within 30 days, with the aim of stabilizing high risk patients healthcare and pursuing the longterm cost effectiveness of their care through better health – albeit, while still being aware that specificity matters in terms of reducing cost and utilization).
+
+## For The LACE Sum Model, What Probability Threshold Maximizes The Sum of Sensitivity + Specificity?
+#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+
+```{r, fig.width = 8, fig.height = 8}
+
+    # Get Optimal Probability Threshold
+    optimal.lacesum <- bestThreshold(model.readmit30.lacesum, data.valid, "readmit_30", by = 0.001)
+
+    # Predict On Validation Set
+    model.readmit30.lacesum.probabilities <- predict(model.readmit30.lacesum, data.valid, type = "response")
+
+    # Compute ROC Curve
+    roc.prediction <- ROCR::prediction(model.readmit30.lacesum.probabilities, data.valid[, dependent])
+    roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
+
+    # Compute AUC
+    roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
+
+    # Plot ROC
+    plot(roc.performance, measure = "tpr", x.measure = "fpr")
+    abline(coef = c(0, 1))
+    title(paste("ROC For readmit30 ~ LACE Sum Model (Response) (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
+
+
+    # Optimal Statistics By LACE Sum Probability Threshold
+    message(
+        "Threshold: ", optimal.lacesum$report["threshold"], "\n",
+        "Correct: ", optimal.lacesum$report["correct"], "\n",
+        "Incorrect: ", optimal.lacesum$report["incorrect"], "\n",
+        "Accuracy: ", optimal.lacesum$report["accuracy"], "\n",
+        "Sensitivity: ", optimal.lacesum$report["sensitivity"], "\n",
+        "Specificity: ", optimal.lacesum$report["specificity"], "\n",
+        "FPR: ", optimal.lacesum$report["fpr"], "\n",
+        "FNR: ", optimal.lacesum$report["fnr"], "\n",
+        "n: ", optimal.lacesum$report["n"]
+    )
+
+```
+
+AUC is pretty impressive considering the simplicity of the `readmit_30 ~ LACEsum` model. It looks like we can improve sensitivity substantially (58.79%) with a hit to specificity (72.45%) and accuracy (61.25%) if we optimize our risk stratification (i.e. high risk or low risk) by a tuned probability threshold of probability of 15.1% risk for readmission within 30 days.
+
+## For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
+#### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
+
+```{r}
+
+    # Output By Optimal Accuracy + Sensitivity
+    idx <- which.max(optimal.lacesum$stats[["accuracy"]] + optimal.lacesum$stats[["sensitivity"]])
+    message(
+        "Threshold: ", optimal.lacesum$stats[["thresholds"]][idx], "\n",
+        "Correct: ", optimal.lacesum$stats[["correct"]][idx], "\n",
+        "Incorrect: ", optimal.lacesum$stats[["incorrect"]][idx], "\n",
+        "Accuracy: ", optimal.lacesum$stats[["accuracy"]][idx], "\n",
+        "Sensitivity: ", optimal.lacesum$stats[["sensitivity"]][idx], "\n",
+        "Specificity: ", optimal.lacesum$stats[["specificity"]][idx], "\n",
+        "FPR: ", optimal.lacesum$stats[["fpr"]][idx], "\n",
+        "FNR: ", optimal.lacesum$stats[["fnr"]][idx], "\n",
+        "n: ", optimal.lacesum$report["n"]
+    )
+
+```
+
+If we maximize our accuracy and sensitivity, we get a much more sensitive model (82.18% sensitivity), however it appears to have low accuracy (44.51%) – without going into too much detail, it seems a threshold of 8.9% probability for readmission within 30 days is likely to flag most patients (high false positive rate) and have a low specificity (45.41%) but get a large proportion of the patients who are on course to get readmitted within 30 days. Again, pretty impressive for a single score. 
+
+## For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
+#### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
+```{r}
+
+    # Output By Optimal Accuracy + Specificity
+    idx <- which.max(optimal.lacesum$stats[["accuracy"]] + optimal.lacesum$stats[["specificity"]])
+    message(
+        "Threshold: ", optimal.lacesum$stats[["thresholds"]][idx], "\n",
+        "Correct: ", optimal.lacesum$stats[["correct"]][idx], "\n",
+        "Incorrect: ", optimal.lacesum$stats[["incorrect"]][idx], "\n",
+        "Accuracy: ", optimal.lacesum$stats[["accuracy"]][idx], "\n",
+        "Sensitivity: ", optimal.lacesum$stats[["sensitivity"]][idx], "\n",
+        "Specificity: ", optimal.lacesum$stats[["specificity"]][idx], "\n",
+        "FPR: ", optimal.lacesum$stats[["fpr"]][idx], "\n",
+        "FNR: ", optimal.lacesum$stats[["fnr"]][idx], "\n",
+        "n: ", optimal.lacesum$report["n"]
+    )
+
+```
+
+And if we wanted to clamp down on utilization in the short term, well, this model would be one way to do it. It would probably come back to haunt us – with 99.8% specificity and only 3.8% sensitivity, this is effectively an argument to not prioritize any but the most severe cases and a compelling example of where accuracy (which is pretty good here, at 73.96%) may not be the metric to prioritize. Cold blooded, with a probability threshold of greater than or equal to 51.3% chance of readmission within 30 days being required to be considered high risk.
+
+## For The L + A + C + E Model, What Threshold Maximizes The Sum of Sensitivity + Specificity?
+#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+```{r, fig.width = 8, fig.height = 8}
+
+    # Get Optimal From model.readmit30.l_a_c_e
+    optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30", by = 0.001)
+
+    # Compute ROC Curve
+    roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
+    roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
+
+    # Compute AUC
+    roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
+
+    plot(roc.performance, measure = "tpr", x.measure = "fpr")
+    abline(coef = c(0, 1))
+    title(paste("ROC For readmit30 ~ L + A + C + E Model (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
+
+    # Output By Optimal Sum of Sensitivity And Sensitivity
+    message(
+        "Threshold: ", optimal.l_a_c_e$report["threshold"], "\n",
+        "Correct: ", optimal.l_a_c_e$report["correct"], "\n",
+        "Incorrect: ", optimal.l_a_c_e$report["incorrect"], "\n",
+        "Accuracy: ", optimal.l_a_c_e$report["accuracy"], "\n",
+        "Sensitivity: ", optimal.l_a_c_e$report["sensitivity"], "\n",
+        "Specificity: ", optimal.l_a_c_e$report["specificity"], "\n",
+        "FPR: ", optimal.l_a_c_e$report["fpr"], "\n",
+        "FNR: ", optimal.l_a_c_e$report["fnr"], "\n",
+        "n: ", optimal.l_a_c_e$report["n"]
+    )
+
+```
+
+To the `readmit30.l_a_c_e` (separate L + A + C + E covariates) model. The AUC here (AUC = 0.7711) is improved over the simple LACE sum model (AUC = 0.7159) – good news. The 10 added comorbidities are probably a contributing factor here, in addition the lack of information loss from summing of the L + A + C + E into the LACE sum. 
+
+To maximize the sum of sensitivity and specificity, the optimal threshold was found to be a probability of readmission within 30 days of 14.7%. While the accuracy is not great here (65.89%), it is better than the LACE sum model and does exhibit a decent balance between sensitivity (62.12%) and specificity (78.15%). Can we create a model that is both accurate and sensitive though?
+
+## For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
 ```{r}
 
     # Output By Optimal Accuracy + Sensitivity
     idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["sensitivity"]])
-    message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
-    message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
-    message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
-    message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
-    message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
-    message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
-    message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
-    message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
-    message("n: ", optimal.l_a_c_e$report["n"])
+    message(
+        "Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx], "\n",
+        "Correct: ", optimal.l_a_c_e$stats[["correct"]][idx], "\n",
+        "Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx], "\n",
+        "Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx], "\n",
+        "Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx], "\n",
+        "Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx], "\n",
+        "FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx], "\n",
+        "FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx], "\n",
+        "n: ", optimal.l_a_c_e$report["n"]
+    )
 
 ```
 
-## What Threshold Maximizes The Sum of Accuracy + Specificity?
+This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is not good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentiall could be tuned further. 
+
+## For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
 ```{r}
 
     # Output By Optimal Accuracy + Specificity
     idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["specificity"]])
-    message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
-    message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
-    message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
-    message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
-    message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
-    message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
-    message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
-    message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
-    message("n: ", optimal.l_a_c_e$report["n"])
+    message(
+        "Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx], "\n",
+        "Correct: ", optimal.l_a_c_e$stats[["correct"]][idx], "\n",
+        "Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx], "\n",
+        "Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx], "\n",
+        "Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx], "\n",
+        "Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx], "\n",
+        "FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx], "\n",
+        "FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx], "\n",
+        "n: ", optimal.l_a_c_e$report["n"]
+    )
 
 ```
+
+And the final configuration for this model, which maximizes the sum of accuracy + specificity. As noted previously, this is the cold blooded breed of model and this variant considers high risk patients to be those with a probability greater than or equal to 64.6% of readmission within 30 days, although at least this one gets four times the sensitivity of the comparable LACE sum model (15.02%). Accuracy is fairly high (75.18%) and specificity is very good (99.4%). 

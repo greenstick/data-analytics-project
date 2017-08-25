@@ -158,11 +158,13 @@ output: html_document
 
 ## Problem Set 2 – C 
 
+Derrick Hee assisted in the unweighted C calculation below.
+
 ```{r}
 
     # Narrow By ICD-9 Codes And Match To String
     # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-        # Unweighted
+    # Unweighted
 
     sqlStatement <- "
         SELECT patientid,
@@ -357,27 +359,39 @@ output: html_document
     # How Many Rows Do We Have?
     message("n Rows: ", dim(analytics.table)[1])
 
-    # Narrow By ICD-9 Codes And Match To String
-    # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-    # Loose Weighting Scheme:
-    #   Diabetes    = 1
-    #   MCI         = 1
-    #   CAD         = 2
-    #   CHF         = 4
-    #   Asthma      = 1
-    #   Hepatitis C = 2
-    #   Dementia    = 3
-    #   Stroke      = 4
-    #   Depression  = 2
-    #   PVD         = 1
-    # Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
-    #
-    # String Matching Was Done For Conditions Without Specific ICD-9 Codes:
-    #   CAD
-    #   Asthma
-    #   Hepatitis C
-    #   Stroke
+```
 
+## Problem Set 2 – C Weighted
+
+Narrow By ICD-9 Codes And Use Additional String Matching For Comorbidities With Non-Specific Or Unknown ICD-9 Codes
+
+Ad Hoc Weighting Scheme:
+
+| **Comorbidity**                   | **Weight**  |
+|-----------------------------------|-------------|
+| Diabetes                          | 1           |
+| Myocardial Infarction (MCI)       | 1           |   
+| Coronary Artery Disease (CAD)     | 2           |
+| Congestive Heart Failure (CHF)    | 4           | 
+| Asthma                            | 1           |
+| Hepatitis C                       | 2           |
+| Dementia                          | 3           |
+| Stroke                            | 4           |
+| Depression                        | 2           |
+| Peripheral Vascular Disease (PVD) | 1           |
+
+Why this weighting scheme? No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
+
+String Matching Was Done For Conditions Without Specific ICD-9 Codes:
+
+* Coronary Artery Disease (CAD)
+* Asthma
+* Hepatitis C
+* Stroke
+
+```{r}
+
+    # Query Statement
     sqlStatement <- "
         SELECT patientid,
             CASE 
@@ -560,13 +574,16 @@ output: html_document
     )
 
     # Apply Max C Limit
-    queryResult$C_weight <- ifelse(C.weight >= 4, 5, C.weight)
+    queryResult$C_weight_cut <- ifelse(C.weight >= 4, 5, C.weight)
+
+    # Unclipped C Weight
+    queryResult$C_weight <- C.weight
 
     # Summarize Query
     summary(queryResult)
 
     # Merge E Into Analytics Table
-    analytics.table <- merge(analytics.table, queryResult[c("patientid", "C_weight")], by = "patientid", all.x = TRUE)
+    analytics.table <- merge(analytics.table, queryResult[c("patientid", "C_weight", "C_weight_cut")], by = "patientid", all.x = TRUE)
 
     # How Many Rows Do We Have?
     message("n Rows: ", dim(analytics.table)[1])
@@ -574,6 +591,8 @@ output: html_document
 ```
 
 ## Problem Set 1 – E 
+
+Credit goes to Ted Laderas for the SQL query below to compute E.
 
 ```{r}
 
@@ -625,16 +644,25 @@ output: html_document
 
 ```{r}
 
+    # Lace Sum Unweighted C
     analytics.table$LACE_sum <- (
         analytics.table$L + 
         analytics.table$A + 
         analytics.table$C + 
         analytics.table$E
     )
+    # Lace Sum Weighted C
     analytics.table$LACE_sum_C_weight <- (
         analytics.table$L + 
         analytics.table$A + 
         analytics.table$C_weight + 
+        analytics.table$E
+    )
+    # Lace Sum Weighted C With Cut At C <= 5
+    analytics.table$LACE_sum_C_weight_cut <- (
+        analytics.table$L + 
+        analytics.table$A + 
+        analytics.table$C_weight_cut + 
         analytics.table$E
     )
 

@@ -1,3 +1,10 @@
+---
+title: "Project - Data Analytics – Modeling"
+author: "Cordier B., Hee D., Swan R."
+date: "6/21/2017"
+output: html_document
+---
+
 ## Problem Set 2 - Let's Get Logistical
 
 ```{r}

@@ -1,6 +1,6 @@
 ---
-title: "Problem Set 1"
-author: "Benjamin Cordier"
+title: "Project - Data Analytics – Queries"
+author: "Cordier B., Hee D., Swan R."
 date: "6/21/2017"
 output: html_document
 ---

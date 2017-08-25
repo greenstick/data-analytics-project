@@ -96,17 +96,17 @@ analytics.table[1:10,]
 sqlStatement <- "
 	SELECT PEH.*, 
 		CASE
-			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 0
-				THEN 1
 			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 1
-				THEN 2
+				THEN 1
 			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 2
+				THEN 2
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 3
 				THEN 3
-			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 2 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 6 
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 3 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 7 
 				THEN 4
-			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 5 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 13 
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 6 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 14 
 				THEN 5
-			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 13 
+			WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 14 
 				THEN 7
 			ELSE 0
 		END AS L
@@ -160,6 +160,8 @@ analytics.table[1:10,]
 # Narrow By ICD-9 Codes And Match To String
 # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
 # Loose Weighting Scheme:
+# 	Diabetes 	= 2
+# 	MCI 		= 2
 #	CAD 		= 2
 #	CHF 		= 3
 #	Asthma 		= 1
@@ -178,6 +180,21 @@ analytics.table[1:10,]
 
 sqlStatement <- "
 	SELECT patientid,
+	-- Diabetes
+		CASE
+			WHEN icd9code LIKE '250.40'
+				OR icd9code LIKE '250.50'
+				OR icd9code LIKE '250.60'
+					THEN 1
+			ELSE 0
+		END AS icd_diabetes,
+	-- Myocardial Infarction
+		CASE
+			WHEN icd9code LIKE '412%'
+				OR icd9code LIKE '410%'
+					THEN 1
+			ELSE 0
+		END AS icd9_mci,
 	-- CAD 
 		CASE 
 			WHEN icd9code LIKE '410%'
@@ -306,6 +323,9 @@ summary(queryResult)
 
 # Merge E Into Analytics Table
 analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
+
+# Patients Should Have Multiple Comorbidities
+analytics.table[c(462, 551, 1075),]
 
 # How Many Rows Do We Have?
 message("n Rows: ", dim(analytics.table)[1])

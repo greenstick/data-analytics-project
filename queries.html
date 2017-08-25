@@ -239,17 +239,17 @@ analytics.table[1:10,]</code></pre>
 sqlStatement &lt;- &quot;
     SELECT PEH.*, 
         CASE
-            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 0
-                THEN 1
             WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 1
-                THEN 2
+                THEN 1
             WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 2
+                THEN 2
+            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 3
                 THEN 3
-            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 2 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &lt; 6 
+            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 3 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &lt; 7 
                 THEN 4
-            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 5 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &lt; 13 
+            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 6 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &lt; 14 
                 THEN 5
-            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 13 
+            WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) &gt; 14 
                 THEN 7
             ELSE 0
         END AS L
@@ -274,14 +274,14 @@ queryResult[1:10,]</code></pre>
 ##    Discharge_date   Admit_source readmit_30 index_admit L
 ## 1      2014-01-08 Emergency Room          1           1 5
 ## 2      2014-01-13         Clinic          0           1 5
-## 3      2014-01-07       Transfer          0           1 5
-## 4      2014-01-07 Emergency Room          0           1 5
+## 3      2014-01-07       Transfer          0           1 4
+## 4      2014-01-07 Emergency Room          0           1 4
 ## 5      2014-01-08 Emergency Room          1           1 5
 ## 6      2014-01-08 Emergency Room          1           1 5
 ## 7      2014-01-16 Emergency Room          0           1 7
 ## 8      2014-01-06       Transfer          0           1 4
 ## 9      2014-01-08 Emergency Room          0           1 5
-## 10     2014-01-04 Emergency Room          0           1 4</code></pre>
+## 10     2014-01-04 Emergency Room          0           1 3</code></pre>
 <pre class="r"><code># Set Analytics Table To This Query Result As Starting Point
 analytics.table &lt;- queryResult
 
@@ -348,19 +348,21 @@ analytics.table[1:10,]</code></pre>
 ##    Discharge_date   Admit_source readmit_30 index_admit L A
 ## 1      2014-01-08 Emergency Room          1           1 5 3
 ## 2      2014-01-13         Clinic          0           1 5 0
-## 3      2014-01-07       Transfer          0           1 5 0
-## 4      2014-01-07 Emergency Room          0           1 5 3
+## 3      2014-01-07       Transfer          0           1 4 0
+## 4      2014-01-07 Emergency Room          0           1 4 3
 ## 5      2014-01-08 Emergency Room          1           1 5 3
 ## 6      2014-01-08 Emergency Room          1           1 5 3
 ## 7      2014-01-16 Emergency Room          0           1 7 3
 ## 8      2014-01-06       Transfer          0           1 4 0
 ## 9      2014-01-08 Emergency Room          0           1 5 3
-## 10     2014-01-04 Emergency Room          0           1 4 3</code></pre>
+## 10     2014-01-04 Emergency Room          0           1 3 3</code></pre>
 <div id="problem-set-2-c" class="section level2">
 <h2>Problem Set 2 – C</h2>
 <pre class="r"><code># Narrow By ICD-9 Codes And Match To String
 # ICD-9 Codes Manually Reviewed &amp; Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
 # Loose Weighting Scheme:
+#   Diabetes    = 2
+#   MCI         = 2
 #   CAD         = 2
 #   CHF         = 3
 #   Asthma      = 1
@@ -379,6 +381,21 @@ analytics.table[1:10,]</code></pre>
 
 sqlStatement &lt;- &quot;
     SELECT patientid,
+    -- Diabetes
+        CASE
+            WHEN icd9code LIKE '250.40'
+                OR icd9code LIKE '250.50'
+                OR icd9code LIKE '250.60'
+                    THEN 1
+            ELSE 0
+        END AS icd_diabetes,
+    -- Myocardial Infarction
+        CASE
+            WHEN icd9code LIKE '412%'
+                OR icd9code LIKE '410%'
+                    THEN 1
+            ELSE 0
+        END AS icd9_mci,
     -- CAD 
         CASE 
             WHEN icd9code LIKE '410%'
@@ -489,28 +506,28 @@ sqlStatement &lt;- &quot;
 # Query
 queryResult &lt;- dbGetQuery(SQLiteConnection, sqlStatement)
 queryResult[1:10,]</code></pre>
-<pre><code>##    patientid icd9_cad icd9_chf icd9_asthma icd9_hepatitis_c icd9_dementia
-## 1         NA        0        0           0                0             0
-## 2          1        0        0           0                0             0
-## 3          2        0        0           0                0             0
-## 4          3        0        0           0                0             0
-## 5          4        0        0           0                0             0
-## 6          5        0        0           0                0             0
-## 7          6        0        0           0                0             0
-## 8          7        0        0           0                0             0
-## 9          8        0        0           0                0             0
-## 10         9        0        0           0                0             0
-##    icd9_stroke icd9_depression icd9_pvd
-## 1            0               0        0
-## 2            0               0        0
-## 3            0               0        1
-## 4            0               0        0
-## 5            0               0        1
-## 6            0               0        1
-## 7            0               0        0
-## 8            0               0        0
-## 9            0               0        0
-## 10           0               0        0</code></pre>
+<pre><code>##    patientid icd_diabetes icd9_mci icd9_cad icd9_chf icd9_asthma
+## 1         NA            0        0        0        0           0
+## 2          1            0        0        0        0           0
+## 3          2            0        0        0        0           0
+## 4          3            0        0        0        0           0
+## 5          4            0        0        0        0           0
+## 6          5            0        0        0        0           0
+## 7          6            0        0        0        0           0
+## 8          7            0        0        0        0           0
+## 9          8            0        0        0        0           0
+## 10         9            0        0        0        0           0
+##    icd9_hepatitis_c icd9_dementia icd9_stroke icd9_depression icd9_pvd
+## 1                 0             0           0               0        0
+## 2                 0             0           0               0        0
+## 3                 0             0           0               0        1
+## 4                 0             0           0               0        0
+## 5                 0             0           0               0        1
+## 6                 0             0           0               0        1
+## 7                 0             0           0               0        0
+## 8                 0             0           0               0        0
+## 9                 0             0           0               0        0
+## 10                0             0           0               0        0</code></pre>
 <pre class="r"><code># Compute E
 queryResult$C &lt;- (
     queryResult$icd9_cad + 
@@ -525,34 +542,44 @@ queryResult$C &lt;- (
 
 # Summarize Query
 summary(queryResult)</code></pre>
-<pre><code>##    patientid        icd9_cad           icd9_chf       icd9_asthma     
-##  Min.   :    1   Min.   :0.00e+00   Min.   :0.0000   Min.   :0.00000  
-##  1st Qu.: 8634   1st Qu.:0.00e+00   1st Qu.:0.0000   1st Qu.:0.00000  
-##  Median :17265   Median :0.00e+00   Median :0.0000   Median :0.00000  
-##  Mean   :17266   Mean   :2.91e-05   Mean   :0.1674   Mean   :0.04494  
-##  3rd Qu.:25900   3rd Qu.:0.00e+00   3rd Qu.:0.0000   3rd Qu.:0.00000  
-##  Max.   :34532   Max.   :1.00e+00   Max.   :1.0000   Max.   :1.00000  
-##  NA's   :1                                                            
-##  icd9_hepatitis_c  icd9_dementia       icd9_stroke      icd9_depression   
-##  Min.   :0.00000   Min.   :0.000000   Min.   :0.00000   Min.   :0.000000  
-##  1st Qu.:0.00000   1st Qu.:0.000000   1st Qu.:0.00000   1st Qu.:0.000000  
-##  Median :0.00000   Median :0.000000   Median :0.00000   Median :0.000000  
-##  Mean   :0.01616   Mean   :0.005116   Mean   :0.01764   Mean   :0.006162  
-##  3rd Qu.:0.00000   3rd Qu.:0.000000   3rd Qu.:0.00000   3rd Qu.:0.000000  
-##  Max.   :1.00000   Max.   :1.000000   Max.   :1.00000   Max.   :1.000000  
-##                                                                           
-##     icd9_pvd            C         
-##  Min.   :0.0000   Min.   :0.0000  
-##  1st Qu.:0.0000   1st Qu.:0.0000  
-##  Median :0.0000   Median :0.0000  
-##  Mean   :0.2123   Mean   :0.4697  
-##  3rd Qu.:0.0000   3rd Qu.:1.0000  
-##  Max.   :1.0000   Max.   :1.0000  
+<pre><code>##    patientid      icd_diabetes        icd9_mci           icd9_cad       
+##  Min.   :    1   Min.   :0.00000   Min.   :0.000000   Min.   :0.00e+00  
+##  1st Qu.: 8634   1st Qu.:0.00000   1st Qu.:0.000000   1st Qu.:0.00e+00  
+##  Median :17265   Median :0.00000   Median :0.000000   Median :0.00e+00  
+##  Mean   :17266   Mean   :0.01535   Mean   :0.003139   Mean   :2.91e-05  
+##  3rd Qu.:25900   3rd Qu.:0.00000   3rd Qu.:0.000000   3rd Qu.:0.00e+00  
+##  Max.   :34532   Max.   :1.00000   Max.   :1.000000   Max.   :1.00e+00  
+##  NA's   :1                                                              
+##     icd9_chf       icd9_asthma      icd9_hepatitis_c  icd9_dementia     
+##  Min.   :0.0000   Min.   :0.00000   Min.   :0.00000   Min.   :0.000000  
+##  1st Qu.:0.0000   1st Qu.:0.00000   1st Qu.:0.00000   1st Qu.:0.000000  
+##  Median :0.0000   Median :0.00000   Median :0.00000   Median :0.000000  
+##  Mean   :0.1674   Mean   :0.04494   Mean   :0.01616   Mean   :0.005116  
+##  3rd Qu.:0.0000   3rd Qu.:0.00000   3rd Qu.:0.00000   3rd Qu.:0.000000  
+##  Max.   :1.0000   Max.   :1.00000   Max.   :1.00000   Max.   :1.000000  
+##                                                                         
+##   icd9_stroke      icd9_depression       icd9_pvd            C         
+##  Min.   :0.00000   Min.   :0.000000   Min.   :0.0000   Min.   :0.0000  
+##  1st Qu.:0.00000   1st Qu.:0.000000   1st Qu.:0.0000   1st Qu.:0.0000  
+##  Median :0.00000   Median :0.000000   Median :0.0000   Median :0.0000  
+##  Mean   :0.01764   Mean   :0.006162   Mean   :0.2123   Mean   :0.4697  
+##  3rd Qu.:0.00000   3rd Qu.:0.000000   3rd Qu.:0.0000   3rd Qu.:1.0000  
+##  Max.   :1.00000   Max.   :1.000000   Max.   :1.0000   Max.   :1.0000  
 ## </code></pre>
 <pre class="r"><code># Merge E Into Analytics Table
 analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)
 
-# How Many Rows Do We Have?
+# Patients Should Have Multiple Comorbidities
+analytics.table[c(462, 551, 1075),]</code></pre>
+<pre><code>##      patientid Event_ID encounter_type         outcome Admit_date
+## 462        462      150             22             SNF 2014-01-01
+## 551        551      341             22 Discharged Home 2014-01-01
+## 1075      1075      992             22 Discharged Home 2014-01-01
+##      Discharge_date   Admit_source readmit_30 index_admit L A C
+## 462      2014-01-06       Transfer          0           1 4 0 0
+## 551      2014-01-03 Emergency Room          0           1 2 3 0
+## 1075     2014-01-08 Emergency Room          1           1 5 3 0</code></pre>
+<pre class="r"><code># How Many Rows Do We Have?
 message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
 </div>
@@ -617,14 +644,14 @@ analytics.table[0:10,]</code></pre>
 ##    Discharge_date   Admit_source readmit_30 index_admit L A C E
 ## 1      2014-01-08 Emergency Room          1           1 5 3 0 1
 ## 2      2014-01-13         Clinic          0           1 5 0 1 1
-## 3      2014-01-07       Transfer          0           1 5 0 0 0
-## 4      2014-01-07 Emergency Room          0           1 5 3 1 0
+## 3      2014-01-07       Transfer          0           1 4 0 0 0
+## 4      2014-01-07 Emergency Room          0           1 4 3 1 0
 ## 5      2014-01-08 Emergency Room          1           1 5 3 1 0
 ## 6      2014-01-08 Emergency Room          1           1 5 3 0 1
 ## 7      2014-01-16 Emergency Room          0           1 7 3 0 2
 ## 8      2014-01-06       Transfer          0           1 4 0 0 0
 ## 9      2014-01-08 Emergency Room          0           1 5 3 0 0
-## 10     2014-01-04 Emergency Room          0           1 4 3 1 0</code></pre>
+## 10     2014-01-04 Emergency Room          0           1 3 3 1 0</code></pre>
 <pre class="r"><code># Disconnect From Database
 dbDisconnect(SQLiteConnection)</code></pre>
 </div>
@@ -653,14 +680,14 @@ analytics.table[1:10,]</code></pre>
 ##    Discharge_date   Admit_source readmit_30 index_admit L A C E LACE_sum
 ## 1      2014-01-08 Emergency Room          1           1 5 3 0 1        9
 ## 2      2014-01-13         Clinic          0           1 5 0 1 1        7
-## 3      2014-01-07       Transfer          0           1 5 0 0 0        5
-## 4      2014-01-07 Emergency Room          0           1 5 3 1 0        9
+## 3      2014-01-07       Transfer          0           1 4 0 0 0        4
+## 4      2014-01-07 Emergency Room          0           1 4 3 1 0        8
 ## 5      2014-01-08 Emergency Room          1           1 5 3 1 0        9
 ## 6      2014-01-08 Emergency Room          1           1 5 3 0 1        9
 ## 7      2014-01-16 Emergency Room          0           1 7 3 0 2       12
 ## 8      2014-01-06       Transfer          0           1 4 0 0 0        4
 ## 9      2014-01-08 Emergency Room          0           1 5 3 0 0        8
-## 10     2014-01-04 Emergency Room          0           1 4 3 1 0        8</code></pre>
+## 10     2014-01-04 Emergency Room          0           1 3 3 1 0        7</code></pre>
 <pre class="r"><code># Summarize
 summary(analytics.table)</code></pre>
 <pre><code>##    patientid        Event_ID     encounter_type   outcome         
@@ -679,19 +706,19 @@ summary(analytics.table)</code></pre>
 ##                                                           3rd Qu.:0.0000  
 ##                                                           Max.   :1.0000  
 ##                                                                           
-##   index_admit       L               A               C         
-##  Min.   :1    Min.   :0.000   Min.   :0.000   Min.   :0.0000  
-##  1st Qu.:1    1st Qu.:3.000   1st Qu.:0.000   1st Qu.:0.0000  
-##  Median :1    Median :4.000   Median :0.000   Median :0.0000  
-##  Mean   :1    Mean   :4.161   Mean   :1.414   Mean   :0.4697  
-##  3rd Qu.:1    3rd Qu.:5.000   3rd Qu.:3.000   3rd Qu.:1.0000  
-##  Max.   :1    Max.   :7.000   Max.   :3.000   Max.   :1.0000  
-##                                               NA's   :129     
+##   index_admit       L              A               C         
+##  Min.   :1    Min.   :0.00   Min.   :0.000   Min.   :0.0000  
+##  1st Qu.:1    1st Qu.:2.00   1st Qu.:0.000   1st Qu.:0.0000  
+##  Median :1    Median :4.00   Median :0.000   Median :0.0000  
+##  Mean   :1    Mean   :3.65   Mean   :1.414   Mean   :0.4697  
+##  3rd Qu.:1    3rd Qu.:5.00   3rd Qu.:3.000   3rd Qu.:1.0000  
+##  Max.   :1    Max.   :7.00   Max.   :3.000   Max.   :1.0000  
+##                                              NA's   :129     
 ##        E           LACE_sum     
 ##  Min.   :0.00   Min.   : 0.000  
-##  1st Qu.:0.00   1st Qu.: 5.000  
+##  1st Qu.:0.00   1st Qu.: 4.000  
 ##  Median :0.00   Median : 6.000  
-##  Mean   :0.49   Mean   : 6.533  
+##  Mean   :0.49   Mean   : 6.019  
 ##  3rd Qu.:1.00   3rd Qu.: 8.000  
 ##  Max.   :4.00   Max.   :15.000  
 ##  NA's   :4221   NA's   :4337</code></pre>

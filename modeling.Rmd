@@ -52,7 +52,48 @@ data.valid <- data.frame(data.valid, pprobs = model.readmit30.l_a_c_e.probabilit
 # Plot Histogram of Predicted Probabilities
 hist(model.readmit30.l_a_c_e.probabilities)
 
-# Find Best Threshold By Measure Tradeoff
+# How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
+truth <- data.valid[, dependent]
+n <- dim(data.valid)[1]
+statistics <- list()
+report <- list()
+predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
+u <- union(truth, predict)
+predictions <- table(factor(predict, u), factor(truth, u))
+tp <- predictions[1, 1]
+tn <- predictions[2, 2]
+fp <- predictions[1, 2]
+fn <- predictions[2, 1]
+positive <- tp + tn
+negative <- fp + fn
+# Generate Statistics
+statistics$n <- n
+statistics$tp <- tp
+statistics$tn <- tn
+statistics$fp <- fp
+statistics$fn <- fn
+statistics$positive <- (tp + fn)
+statistics$negative <- (tn + fp)
+statistics$correct <- (tp + tn)
+statistics$incorrect <- (fp + fn)
+statistics$accuracy <- ((tp + tn) / n)
+statistics$ppv <- (tp / (tp + fp))
+statistics$npv <- (tn / (tn + fn))
+statistics$tpr <- (tp / (tp + fn))
+statistics$tnr <- (tn / (tn + fp))
+statistics$fpr <- (fp / (fp + tn))
+statistics$fnr <- (fn / (fn + tp))
+statistics$sensitivity <- (tp / (tp + fn))
+statistics$specificity <- (tn / (tn + fp))
+
+message("Accuracy: ", statistics$accuracy)
+message("Sensitivity: ", statistics$sensitivity)
+message("Specificity: ", statistics$specificity)
+message("Correct: ", statistics$correct)
+message("Incorrect: ", statistics$incorrect)
+message("n: ", statistics$n)
+
+# Find Best Probability Threshold By Measure Tradeoff
 # Valid Measures Are Any Two
 # > tpr
 # > tnr
@@ -60,7 +101,7 @@ hist(model.readmit30.l_a_c_e.probabilities)
 # > fnr
 # > sensitivity
 # > specificity
-bestThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
+bestThresholdProb <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
 	
 	truth <- data[, dependent]
 	thresholds <- seq(0.0, 1.0, by = by)
@@ -132,7 +173,7 @@ bestThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "spe
 }
 
 # Get Optimal From model.readmit30.l_a_c_e
-optimal <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
 
 # Output By Optimal Sum of Sensitivity And Sensitivity
 message("Threshold: ", optimal$report["threshold"])
@@ -157,6 +198,5 @@ message("Specificity: ", optimal$stats[["specificity"]][idx])
 message("FPR: ", optimal$stats[["fpr"]][idx])
 message("FNR: ", optimal$stats[["fnr"]][idx])
 message("n: ", optimal$report["n"])
-
 
 ```

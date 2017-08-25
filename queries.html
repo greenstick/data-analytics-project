@@ -123,10 +123,8 @@ $(document).ready(function () {
 </div>
 
 
-<div id="compute-lace-score" class="section level1">
-<h1>Compute LACE Score</h1>
-<div id="setup" class="section level2">
-<h2>Setup</h2>
+<div id="setup" class="section level4">
+<h4>Setup</h4>
 <pre class="r"><code>    # Load Libraries
     library(RSQLite)
     library(zoo)
@@ -289,9 +287,8 @@ $(document).ready(function () {
     message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
 </div>
-</div>
-<div id="problem-set-1-a" class="section level1">
-<h1>Problem Set 1 – A</h1>
+<div id="problem-set-1-a" class="section level2">
+<h2>Problem Set 1 – A</h2>
 <pre class="r"><code>    # Compute Column A
     sqlStatement &lt;- &quot;
         SELECT PEH.*, 
@@ -359,6 +356,7 @@ $(document).ready(function () {
 <pre class="r"><code>    # How Many Rows Do We Have?
     message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
+</div>
 <div id="problem-set-2-c" class="section level2">
 <h2>Problem Set 2 – C</h2>
 <p>Derrick Hee assisted in the unweighted C calculation below.</p>
@@ -1003,8 +1001,8 @@ $(document).ready(function () {
 <pre class="r"><code>    # Disconnect From Database
     dbDisconnect(SQLiteConnection)</code></pre>
 </div>
-<div id="problem-set-2-lace-sum-c-weighted-lace-sum" class="section level2">
-<h2>Problem Set 2 – LACE Sum / C Weighted LACE Sum</h2>
+<div id="problem-set-2-lace-sums" class="section level2">
+<h2>Problem Set 2 – LACE Sums</h2>
 <pre class="r"><code>    # Lace Sum Unweighted C
     analytics.table$LACE_sum &lt;- (
         analytics.table$L + 
@@ -1069,9 +1067,8 @@ $(document).ready(function () {
 ##  3rd Qu.:12.000    3rd Qu.:12.000       
 ##  Max.   :24.000    Max.   :19.000       
 ##  NA's   :4337      NA's   :4337</code></pre>
-</div>
-<div id="dump-analytics-table-to-rds" class="section level2">
-<h2>Dump Analytics Table to RDS</h2>
+<div id="dump-analytics-table-to-rds" class="section level3">
+<h3>Dump Analytics Table to RDS</h3>
 <pre class="r"><code>    # Save Analytics Table As R Data Object
     saveRDS(analytics.table, &quot;data/analytics.rdata&quot;)</code></pre>
 </div>

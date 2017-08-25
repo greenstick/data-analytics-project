@@ -5,7 +5,7 @@ date: "6/21/2017"
 output: html_document
 ---
 
-## Problem Set 2 - Let's Get Logistical
+# Problem Set 2 - Let's Get Logistical
 
 ```{r}
 
@@ -30,10 +30,23 @@ output: html_document
     message(nrow(data.train), " Rows in Training Set")
     message(nrow(data.valid), " Rows in Validation Set")
 
+```
+
+## Problem Set 2 – LACE Sum Model
+
+```{r}
+
     # How Well Does Just The LACE Sum Do?
     formula <- as.formula("readmit_30 ~ LACE_sum")
     model.readmit30.lacesum <- glm(formula, data = data.train, family = "binomial")
     print(summary(model.readmit30.lacesum))
+
+```
+LACE sum model works respectably.
+
+## Problem Set 2 – L + A + C + E Model
+
+```{r}
 
     # How About The Individual L, A, C, & E?
     formula <- as.formula("readmit_30 ~ L + A + C + E")
@@ -45,6 +58,13 @@ output: html_document
     model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
     print(summary(model.readmit30.l_a_cwc_e))
 
+```
+As hypothesized, the model with broken out values performs a little better than the LACE sum model.
+
+## Problem Set 2 – L + A + C Weighted + E Model
+
+```{r}
+
     # How About The Individual L, A, C_weight, & E?
     formula <- as.formula("readmit_30 ~ L + A + C_weight + E")
     model.readmit30.l_a_cw_e <- glm(formula, data = data.train, family = "binomial")
@@ -54,6 +74,14 @@ output: html_document
     formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
     model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
     print(summary(model.readmit30.l_a_cwc_e))
+
+```
+
+And...our weighting scheme removes all significance of C. It was naïve afterall.
+
+## Problem Set 2 – L + A + C Weighted With Cutoff (5) + E Model
+
+```{r}
 
     # How About The Individual L, A, C_weight_cut, & E?
     formula <- as.formula("readmit_30 ~ L + A + C_weight_cut + E")
@@ -66,9 +94,12 @@ output: html_document
     print(summary(model.readmit30.l_a_cw_e_lacesumwc))
 
 ``` 
-Seems our weighting scheme is a case study on one developed by a person lacking in domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).
 
-# Problem Set 2 – Model Analyses
+And the cutoff further diminishes the already insignificant weighted C. 
+
+Well, it seems our weighting scheme is a case study on one developed by a person lacking in domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).
+
+## Problem Set 2 – Selected Model (L + A + C + E) Analyses
 
 ```{r, fig.width = 6, fig.height = 6}
 
@@ -85,7 +116,8 @@ Seems our weighting scheme is a case study on one developed by a person lacking 
 
 Long tail; most patients are predicted as having a low probability of readmission within 30 days. There is a long tail of patients that have a high predicted probability. 
 
-## First A Function Definition Then Some Questions
+### First A Function Definition Then Some Questions
+
 ```{r}
 
     # Find Best Probability Threshold By Measure Tradeoff
@@ -169,7 +201,7 @@ Long tail; most patients are predicted as having a low probability of readmissio
 
 ```
 
-## How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
+### How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
 
 ```{r}
 
@@ -223,7 +255,7 @@ Long tail; most patients are predicted as having a low probability of readmissio
 
 Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely coming from the specificity (91.91%) and, I would assert that we may want to emphasize sensitivity over specificity in our context (i.e. flagging patients as being at high risk for readmission within 30 days, with the aim of stabilizing high risk patients healthcare and pursuing the longterm cost effectiveness of their care through better health – albeit, while still being aware that specificity matters in terms of reducing cost and utilization).
 
-## For The LACE Sum Model, What Probability Threshold Maximizes The Sum of Sensitivity + Specificity?
+### For The LACE Sum Model, What Probability Threshold Maximizes The Sum of Sensitivity + Specificity?
 #### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
 
 ```{r, fig.width = 6, fig.height = 6}
@@ -264,7 +296,7 @@ Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely c
 
 AUC is pretty impressive considering the simplicity of the `readmit_30 ~ LACEsum` model. It looks like we can improve sensitivity substantially (58.79%) with a hit to specificity (72.45%) and accuracy (61.25%) if we optimize our risk stratification (i.e. high risk or low risk) by a tuned probability threshold of probability of 15.1% risk for readmission within 30 days.
 
-## For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
+### For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
 
 ```{r}
@@ -287,8 +319,9 @@ AUC is pretty impressive considering the simplicity of the `readmit_30 ~ LACEsum
 
 If we maximize our accuracy and sensitivity, we get a much more sensitive model (82.18% sensitivity), however it appears to have low accuracy (44.51%) – without going into too much detail, it seems a threshold of 8.9% probability for readmission within 30 days is likely to flag most patients (high false positive rate) and have a low specificity (45.41%) but get a large proportion of the patients who are on course to get readmitted within 30 days. Again, pretty impressive for a single score. 
 
-## For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
+### For The LACE Sum Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
+
 ```{r}
 
     # Output By Optimal Accuracy + Specificity
@@ -309,8 +342,9 @@ If we maximize our accuracy and sensitivity, we get a much more sensitive model 
 
 And if we wanted to clamp down on utilization in the short term, well, this model would be one way to do it. It would probably come back to haunt us – with 99.8% specificity and only 3.8% sensitivity, this is effectively an argument to not prioritize any but the most severe cases and a compelling example of where accuracy (which is pretty good here, at 73.96%) may not be the metric to prioritize. Cold blooded, with a probability threshold of greater than or equal to 51.3% chance of readmission within 30 days being required to be considered high risk.
 
-## For The L + A + C + E Model, What Threshold Maximizes The Sum of Sensitivity + Specificity?
+### For The L + A + C + E Model, What Threshold Maximizes The Sum of Sensitivity + Specificity?
 #### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+
 ```{r, fig.width = 6, fig.height = 6}
 
     # Get Optimal From model.readmit30.l_a_c_e
@@ -346,8 +380,9 @@ To the `readmit30.l_a_c_e` (separate L + A + C + E covariates) model. The AUC he
 
 To maximize the sum of sensitivity and specificity, the optimal threshold was found to be a probability of readmission within 30 days of 14.7%. While the accuracy is not great here (65.89%), it is better than the LACE sum model and does exhibit a decent balance between sensitivity (62.12%) and specificity (78.15%). Can we create a model that is both accurate and sensitive though?
 
-## For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
+### For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Sensitivity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
+
 ```{r}
 
     # Output By Optimal Accuracy + Sensitivity
@@ -368,8 +403,9 @@ To maximize the sum of sensitivity and specificity, the optimal threshold was fo
 
 This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is not good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentiall could be tuned further. 
 
-## For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
+### For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
+
 ```{r}
 
     # Output By Optimal Accuracy + Specificity
@@ -390,7 +426,7 @@ This is pretty good. Here I aimed to find the probability threshold that maximiz
 
 And the final configuration for this model, which maximizes the sum of accuracy + specificity. As noted previously, this is the cold blooded breed of model and this variant considers high risk patients to be those with a probability greater than or equal to 64.6% of readmission within 30 days, although at least this one gets four times the sensitivity of the comparable LACE sum model (15.02%). Accuracy is fairly high (75.18%) and specificity is very good (99.4%). 
 
-## Revisiting The Histogram
+### Revisiting The Histogram
 
 ```{r, fig.width = 6, fig.height = 6}
 
@@ -399,4 +435,5 @@ And the final configuration for this model, which maximizes the sum of accuracy 
 
 ```
 
-If we look at the histogram, the model which maximizes the sum of sensitivity and specificity, with a threshold probability of 14.7% makes sense. There is a clear difference in the volume of patients below ~15% probability of readmission within 30 days and those above that threshold. There also appear to be a good number of true readmits within 30 days in the second largest bar between 10 - 15%. The probability threshold that maximizes the sum of sensitivity and accuracy (9.8%) classifies those in this bucket as high risk and yields an increase of about 21% sensitivity from doing so at a cost of decreasing specificity by 24%. 
+If we look at the histogram, the model which maximizes the sum of sensitivity and specificity, with a threshold probability of 14.7% makes sense. There is a clear difference in the volume of patients below ~15% probability of readmission within 30 days and those above that threshold. There also appear to be a good number of true readmits within 30 days in the second largest bar between 10 - 15%. The probability threshold that maximizes the sum of sensitivity and accuracy (9.8%) classifies those in this bucket as high risk and yields an increase of about 21% sensitivity from doing so at a cost of decreasing specificity by 24%.
+

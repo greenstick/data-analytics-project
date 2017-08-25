@@ -11,9 +11,7 @@ output: html_document
 
 ```
 
-# Compute LACE Score
-
-## Setup
+#### Setup
 
 ```{r}
 
@@ -126,7 +124,8 @@ output: html_document
 
 ```
 
-# Problem Set 1 – A
+## Problem Set 1 – A
+
 ```{r}
 
     # Compute Column A
@@ -640,7 +639,7 @@ Credit goes to Ted Laderas for the SQL query below to compute E.
 
 ```
 
-## Problem Set 2 – LACE Sum / C Weighted LACE Sum
+## Problem Set 2 – LACE Sums
 
 ```{r}
 
@@ -671,7 +670,8 @@ Credit goes to Ted Laderas for the SQL query below to compute E.
 
 ```
 
-## Dump Analytics Table to RDS
+### Dump Analytics Table to RDS
+
 ```{r}
 
     # Save Analytics Table As R Data Object

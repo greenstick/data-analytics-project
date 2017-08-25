@@ -180,125 +180,164 @@ analytics.table[1:10,]
 
 sqlStatement <- "
 	SELECT patientid,
-	-- Diabetes
-		CASE
-			WHEN icd9code LIKE '250.40'
-				OR icd9code LIKE '250.50'
-				OR icd9code LIKE '250.60'
-					THEN 1
-			ELSE 0
-		END AS icd_diabetes,
-	-- Myocardial Infarction
-		CASE
-			WHEN icd9code LIKE '412%'
-				OR icd9code LIKE '410%'
-					THEN 1
-			ELSE 0
-		END AS icd9_mci,
-	-- CAD 
 		CASE 
-			WHEN icd9code LIKE '410%'
-				AND UPPER(diagnosis_name) LIKE '%CORONARY%'
-					THEN 1
-			ELSE 0
-		END AS icd9_cad,
-	-- CHF
+			WHEN SUM(icd9_diabetes) > 0 
+				THEN SUM(icd9_diabetes)
+			ELSE 0 
+		END as sum_diabetes,
 		CASE 
-			WHEN icd9code LIKE '428%'
-				OR icd9code LIKE '425.4%'
-				OR icd9code LIKE '425.5%'
-				OR icd9code LIKE '425.6%'
-				OR icd9code LIKE '425.7%'
-				OR icd9code LIKE '425.8%'
-				OR icd9code LIKE '425.9%'
-				OR icd9code LIKE '398.91'
-				OR icd9code LIKE '402.01'
-				OR icd9code LIKE '402.11'
-				OR icd9code LIKE '402.91'
-				OR icd9code LIKE '404.01'
-				OR icd9code LIKE '404.03'
-				OR icd9code LIKE '404.11'
-				OR icd9code LIKE '404.13'
-				OR icd9code LIKE '404.91'
-				OR icd9code LIKE '404.93'
-					THEN 1
-			ELSE 0
-		END AS icd9_chf,
-	-- Asthma
+			WHEN SUM(icd9_mci) > 0 
+				THEN SUM(icd9_mci)
+			ELSE 0 
+		END as sum_mci,
 		CASE 
-			WHEN icd9code LIKE '493%'
-				AND UPPER(diagnosis_name) LIKE '%ASTHMA%'
-				THEN 1
-			ELSE 0
-		END AS icd9_asthma,
-	-- Hepatitis C
-		CASE
-			WHEN icd9code LIKE '070%'
-				AND UPPER(diagnosis_name) LIKE '%HEPATITIS C%'
-					THEN 1
-			ELSE 0
-		END AS icd9_hepatitis_c,
-	-- Dementia
-		CASE
-			WHEN
-				icd9code LIKE '331.2%'
-				OR icd9code LIKE '94.1'
-				OR icd9code LIKE '290%'
-				OR icd9code LIKE '294.1%'
-				OR icd9code LIKE '294.2%'
-				OR icd9code LIKE '294.8%'
-				OR icd9code LIKE '331.11'
-				OR icd9code LIKE '331.19'
-				OR icd9code LIKE '331.82'
-					THEN 1
-			ELSE 0
-		END AS icd9_dementia,
-	-- Stroke
-		CASE
-			WHEN (
-				icd9code LIKE '433%'
-				OR icd9code LIKE '434%'
-			) AND UPPER(diagnosis_name) LIKE '%STROKE%'
-					THEN 1
-			ELSE 0
-		END AS icd9_stroke,
-	-- Depression
-		CASE
-			WHEN 
-				icd9code LIKE '296.2%'
-				OR icd9code LIKE '296.3%'
-				OR icd9code LIKE '296.5%'
-				OR icd9code LIKE '300.4%'
-				OR icd9code LIKE '309%'
-				OR icd9code LIKE '311%'
-					THEN 1
-			ELSE 0
-		END AS icd9_depression,
-	-- PVD
-		CASE
-			WHEN 
-				icd9code LIKE '093.0%'
-				OR icd9code LIKE '437.3%'
-				OR icd9code LIKE '440.%'
-				OR icd9code LIKE '441.%'
-				OR icd9code LIKE '443.1%'
-				OR icd9code LIKE '443.2%'
-				OR icd9code LIKE '443.3%'
-				OR icd9code LIKE '443.4%'
-				OR icd9code LIKE '443.5%'
-				OR icd9code LIKE '443.6%'
-				OR icd9code LIKE '443.7%'
-				OR icd9code LIKE '443.8%'
-				OR icd9code LIKE '443.9%'
-				OR icd9code LIKE '447.1%'
-				OR icd9code LIKE '557.1%'
-				OR icd9code LIKE '557.9%'
-				OR icd9code LIKE 'V43.4%'
-					THEN 1
-			ELSE 0
-		END AS icd9_pvd
-
-	FROM patient_diagnosis AS PD
+			WHEN SUM(icd9_dementia) > 0 
+				THEN SUM(icd9_dementia)
+			ELSE 0 
+		END as sum_dementia,
+		CASE 
+			WHEN SUM(icd9_depression) > 0 
+				THEN SUM(icd9_depression)
+			ELSE 0 
+		END as sum_depression,
+		CASE 
+			WHEN SUM(icd9_stroke) > 0 
+				THEN SUM(icd9_stroke)
+			ELSE 0 
+		END as sum_stroke,
+		CASE 
+			WHEN SUM(icd9_hepatitis_c) > 0 
+				THEN SUM(icd9_hepatitis_c)
+			ELSE 0 
+		END as sum_hepatitis_c,
+		CASE 
+			WHEN SUM(icd9_asthma) > 0 
+				THEN SUM(icd9_asthma)
+			ELSE 0 
+		END as sum_asthma,
+		CASE 
+			WHEN SUM(icd9_cad) > 0 
+				THEN SUM(icd9_cad)
+			ELSE 0 
+		END as sum_cad,
+		CASE 
+			WHEN SUM(icd9_chf) > 0 
+				THEN SUM(icd9_chf)
+			ELSE 0 
+		END as sum_chf,
+		CASE 
+			WHEN SUM(icd9_pvd) > 0 
+				THEN SUM(icd9_pvd)
+			ELSE 0 
+		END as sum_pvd
+	FROM (
+		SELECT *, 
+		-- Diabetes
+			CASE
+				WHEN PD.icd9code LIKE '250.40'
+					OR PD.icd9code LIKE '250.50'
+					OR PD.icd9code LIKE '250.60'
+						THEN 1
+				ELSE 0
+			END AS icd9_diabetes,
+		-- Myocardial Infarction
+			CASE
+				WHEN PD.icd9code LIKE '412%'
+					OR PD.icd9code LIKE '410%'
+						THEN 1
+				ELSE 0
+			END AS icd9_mci,
+		-- Dementia
+			CASE 
+				WHEN PD.icd9code IN (
+					'290.0',
+					'331.20',
+					'294.10'
+				) 
+				OR PD.icd9code LIKE '290.%' 
+					THEN 1 
+				ELSE 0 
+			END as icd9_dementia,
+		-- Depression
+			CASE 
+				WHEN PD.icd9code IN (
+					'300.4',
+					'301.12',
+					'296.2',
+					'296.3',
+					'296.5',
+					'300.4',
+					'311'
+				) 
+				OR PD.icd9code LIKE '309.%' 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_depression,
+		-- Hepatitis C
+			CASE 
+				WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_hepatitis_c,
+		-- Stroke
+			CASE 
+				WHEN (PD.icd9code LIKE '433.%' OR
+			PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_stroke,
+		-- Asthma
+			CASE 
+				WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
+					THEN 1 
+				ELSE 0 
+			END AS icd9_asthma,
+		-- CAD
+			CASE 
+				WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_cad,
+		-- CHF
+			CASE 
+				WHEN PD.icd9code LIKE '428.%' OR
+				PD.icd9code IN (
+					'398.91', 
+					'402.01', 
+					'402.11', 
+					'402.91', 
+					'404.01', 
+					'404.03', 
+					'404.11', 
+					'404.13', 
+					'404.91', 
+					'404.93', 
+					'425.40', 
+					'425.50', 
+					'425.6', 
+					'425.7', 
+					'425.8', 
+					'425.9'
+				) 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_chf,
+		-- PVD
+			CASE 
+				WHEN PD.icd9code LIKE '441.%' 
+				OR PD.icd9code LIKE '440.%' 
+				OR PD.icd9code LIKE '443.%' 
+				or PD.icd9code LIKE '093.%' 
+				or PD.icd9code LIKE '437.3%' 
+				or PD.icd9code LIKE '447.1%' 
+				or PD.icd9code LIKE '557.1%' 
+				or PD.icd9code LIKE '557.9%' 
+				or PD.icd9code LIKE 'V43.4%' 
+					THEN 1 
+				ELSE 0 
+			END AS icd9_pvd
+		FROM patient_diagnosis as PD
+	)
 	GROUP BY patientid
 "
 
@@ -308,14 +347,16 @@ queryResult[1:10,]
 
 # Compute E
 queryResult$C <- (
-	queryResult$icd9_cad + 
-	queryResult$icd9_chf + 
-	queryResult$icd9_asthma + 
-	queryResult$icd9_hepatitis_c + 
-	queryResult$icd9_dementia + 
-	queryResult$icd9_stroke + 
-	queryResult$icd9_depression + 
-	queryResult$icd9_pvd
+	queryResult$sum_diabetes + 
+	queryResult$sum_mci +
+	queryResult$sum_cad + 
+	queryResult$sum_chf + 
+	queryResult$sum_asthma + 
+	queryResult$sum_hepatitis_c + 
+	queryResult$sum_dementia + 
+	queryResult$sum_stroke + 
+	queryResult$sum_depression + 
+	queryResult$sum_pvd
 )
 
 # Summarize Query

@@ -13,8 +13,10 @@ output: html_document
 
     # Load R Data
     analytics.table <- readRDS("data/analytics.rdata")
-    # analytics.table$LACE_sum <- as.factor(analytics.table$LACE_sum)
 
+    # Final n Rows Check
+    message("n Rows: ", dim(analytics.table)[1])
+    
     # First, Partition The Data
     data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
     data.train <- analytics.table[data.train.indices, ]

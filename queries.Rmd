@@ -151,6 +151,9 @@ output: html_document
     # Show Updated Table
     analytics.table[1:10,]
 
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
+
 ```
 
 ## Problem Set 2 – C 
@@ -351,6 +354,8 @@ output: html_document
     # Merge E Into Analytics Table
     analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
 
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
 
     # Narrow By ICD-9 Codes And Match To String
     # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
@@ -608,6 +613,9 @@ output: html_document
     # Show Updated Table
     analytics.table[0:10,]
 
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
+
     # Disconnect From Database
     dbDisconnect(SQLiteConnection)
 
@@ -630,14 +638,8 @@ output: html_document
         analytics.table$E
     )
 
-    # Show Analytics Table
-    analytics.table[1:10,]
-
     # Summarize
     summary(analytics.table)
-
-    # How Many Rows Do We Have?
-    message("n Rows: ", dim(analytics.table)[1])
 
 ```
 

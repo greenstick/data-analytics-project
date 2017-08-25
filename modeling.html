@@ -129,9 +129,11 @@ $(document).ready(function () {
 
     # Load R Data
     analytics.table &lt;- readRDS(&quot;data/analytics.rdata&quot;)
-    # analytics.table$LACE_sum &lt;- as.factor(analytics.table$LACE_sum)
 
-    # First, Partition The Data
+    # Final n Rows Check
+    message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
+<pre><code>## n Rows: 34532</code></pre>
+<pre class="r"><code>    # First, Partition The Data
     data.train.indices &lt;- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
     data.train &lt;- analytics.table[data.train.indices, ]
     data.valid &lt;- analytics.table[-data.train.indices, ]

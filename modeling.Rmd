@@ -53,20 +53,22 @@ data.valid <- data.frame(data.valid, pprobs = model.readmit30.l_a_c_e.probabilit
 hist(model.readmit30.l_a_c_e.probabilities)
 
 # How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
+
+# Set Truth, n, & Predict At Threshold > 10
 truth <- data.valid[, dependent]
 n <- dim(data.valid)[1]
-statistics <- list()
-report <- list()
 predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
+
+# Compute Confusion Matrix
 u <- union(truth, predict)
 predictions <- table(factor(predict, u), factor(truth, u))
 tp <- predictions[1, 1]
 tn <- predictions[2, 2]
 fp <- predictions[1, 2]
 fn <- predictions[2, 1]
-positive <- tp + tn
-negative <- fp + fn
-# Generate Statistics
+
+# Compute Statistics
+statistics <- list()
 statistics$n <- n
 statistics$tp <- tp
 statistics$tn <- tn
@@ -86,12 +88,18 @@ statistics$fnr <- (fn / (fn + tp))
 statistics$sensitivity <- (tp / (tp + fn))
 statistics$specificity <- (tn / (tn + fp))
 
+# Print Results
 message("Accuracy: ", statistics$accuracy)
 message("Sensitivity: ", statistics$sensitivity)
 message("Specificity: ", statistics$specificity)
 message("Correct: ", statistics$correct)
 message("Incorrect: ", statistics$incorrect)
 message("n: ", statistics$n)
+
+```
+## What Threshold Maximizes The Sum of Sensitivity + Specificity?
+#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+```{r}
 
 # Find Best Probability Threshold By Measure Tradeoff
 # Valid Measures Are Any Two
@@ -101,7 +109,7 @@ message("n: ", statistics$n)
 # > fnr
 # > sensitivity
 # > specificity
-bestThresholdProb <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
+maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
 	
 	truth <- data[, dependent]
 	thresholds <- seq(0.0, 1.0, by = by)
@@ -176,27 +184,51 @@ bestThresholdProb <- function (model, data, dependent, m1 = "sensitivity", m2 = 
 optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
 
 # Output By Optimal Sum of Sensitivity And Sensitivity
-message("Threshold: ", optimal$report["threshold"])
-message("Accuracy: ", optimal$report["accuracy"])
-message("Sensitivity: ", optimal$report["sensitivity"])
-message("Specificity: ", optimal$report["specificity"])
-message("Correct: ", optimal$report["correct"])
-message("Incorrect: ", optimal$report["incorrect"])
-message("n: ", optimal$report["n"])
+message("Threshold: ", optimal.l_a_c_e$report["threshold"])
+message("Accuracy: ", optimal.l_a_c_e$report["accuracy"])
+message("Sensitivity: ", optimal.l_a_c_e$report["sensitivity"])
+message("Specificity: ", optimal.l_a_c_e$report["specificity"])
+message("Correct: ", optimal.l_a_c_e$report["correct"])
+message("Incorrect: ", optimal.l_a_c_e$report["incorrect"])
+message("n: ", optimal.l_a_c_e$report["n"])
 
 # Plot AUC
-plot(optimal$stats[["sensitivity"]], optimal$stats[["specificity"]])
+plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
 
-# Output By Optimal Accuracy
-idx <- which.max(optimal$stats[["accuracy"]])
-message("Best Accuracy: ", optimal$stats[["accuracy"]][idx])
-message("Threshold: ", optimal$stats[["thresholds"]][idx])
-message("Correct: ", optimal$stats[["correct"]][idx])
-message("Incorrect: ", optimal$stats[["incorrect"]][idx])
-message("Sensitivity: ", optimal$stats[["sensitivity"]][idx])
-message("Specificity: ", optimal$stats[["specificity"]][idx])
-message("FPR: ", optimal$stats[["fpr"]][idx])
-message("FNR: ", optimal$stats[["fnr"]][idx])
-message("n: ", optimal$report["n"])
+```
+
+## What Threshold Maximizes The Sum of Accuracy + Sensitivity?
+#### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
+```{r}
+
+# Output By Optimal Accuracy + Sensitivity
+idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["sensitivity"]])
+message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
+message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
+message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
+message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
+message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
+message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
+message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
+message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
+message("n: ", optimal.l_a_c_e$report["n"])
+
+```
+
+## What Threshold Maximizes The Sum of Accuracy + Specificity?
+#### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
+```{r}
+
+# Output By Optimal Accuracy + Specificity
+idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["specificity"]])
+message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
+message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
+message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
+message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
+message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
+message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
+message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
+message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
+message("n: ", optimal.l_a_c_e$report["n"])
 
 ```

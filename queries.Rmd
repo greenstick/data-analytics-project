@@ -29,7 +29,7 @@ output: html_document
     seed            <- 111
     partition       <- 0.8
     dependent       <- "readmit_30"
-    database.name   <- "patient1.sqlite"    # Database name
+    database.name   <- "db/patient.sqlite"  # Database name
     data.dir        <- "data/raw/"          # Data file directory
     data.format     <- ".txt"               # Data file format
     data.overwrite  <- TRUE                 # Helps on development, but not something to default to TRUE

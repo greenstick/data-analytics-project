@@ -36,7 +36,19 @@ formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
 model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
 step(model.readmit30.l_a_c_e_lacesum)
 
+# How About The Individual L, A, C_weighted, & E?
+formula <- as.formula("readmit_30 ~ L + A + C_weight + E")
+model.readmit30.l_a_cw_e <- glm(formula, data = data.train, family = "binomial")
+print(summary(model.readmit30.l_a_cw_e))
+
+# What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
+model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
+print(summary(model.readmit30.l_a_cw_e))
+
 ``` 
+Seems our weighting scheme hints at our lack of domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model.
+
 # Problem Set 2 – Model Analyses
 
 The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E Model (AIC = 17140).
@@ -97,8 +109,7 @@ message("Incorrect: ", statistics$incorrect)
 message("n: ", statistics$n)
 
 ```
-## What Threshold Maximizes The Sum of Sensitivity + Specificity?
-#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+## First A Function Definition Then Some Questions
 ```{r}
 
 # Find Best Probability Threshold By Measure Tradeoff
@@ -180,8 +191,17 @@ maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 
 	result
 }
 
+```
+## What Threshold Maximizes The Sum of Sensitivity + Specificity?
+#### i.e. Assuming Utilization & Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?
+
+```{r}
+
 # Get Optimal From model.readmit30.l_a_c_e
 optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+
+# Plot AUC
+plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
 
 # Output By Optimal Sum of Sensitivity And Sensitivity
 message("Threshold: ", optimal.l_a_c_e$report["threshold"])
@@ -191,9 +211,6 @@ message("Specificity: ", optimal.l_a_c_e$report["specificity"])
 message("Correct: ", optimal.l_a_c_e$report["correct"])
 message("Incorrect: ", optimal.l_a_c_e$report["incorrect"])
 message("n: ", optimal.l_a_c_e$report["n"])
-
-# Plot AUC
-plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
 
 ```
 

@@ -159,24 +159,7 @@ analytics.table[1:10,]
 
 # Narrow By ICD-9 Codes And Match To String
 # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-# Loose Weighting Scheme:
-# 	Diabetes 	= 2
-# 	MCI 		= 2
-#	CAD 		= 2
-#	CHF 		= 3
-#	Asthma 		= 1
-#	Hepatitis C = 2
-#	Dementia 	= 2
-#	Stroke 		= 3
-#	Depression 	= 1
-#	PVD 		= 2
-# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
-#
-# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
-# 	CAD
-# 	Asthma
-# 	Hepatitis C
-# 	Stroke
+	# Unweighted
 
 sqlStatement <- "
 	SELECT patientid,
@@ -346,7 +329,7 @@ queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
 queryResult[1:10,]
 
 # Compute E
-queryResult$C <- (
+C <- (
 	queryResult$sum_diabetes + 
 	queryResult$sum_mci +
 	queryResult$sum_cad + 
@@ -359,14 +342,226 @@ queryResult$C <- (
 	queryResult$sum_pvd
 )
 
+# Apply Max C Limit
+queryResult$C <- ifelse(C >= 4, 5, C)
+
 # Summarize Query
 summary(queryResult)
 
 # Merge E Into Analytics Table
 analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
 
-# Patients Should Have Multiple Comorbidities
-analytics.table[c(462, 551, 1075),]
+
+# Narrow By ICD-9 Codes And Match To String
+# ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
+# Loose Weighting Scheme:
+# 	Diabetes 	= 1
+# 	MCI 		= 1
+#	CAD 		= 2
+#	CHF 		= 4
+#	Asthma 		= 1
+#	Hepatitis C = 2
+#	Dementia 	= 3
+#	Stroke 		= 4
+#	Depression 	= 2
+#	PVD 		= 1
+# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
+#
+# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
+# 	CAD
+# 	Asthma
+# 	Hepatitis C
+# 	Stroke
+
+sqlStatement <- "
+	SELECT patientid,
+		CASE 
+			WHEN SUM(icd9_diabetes) > 0 
+				THEN SUM(icd9_diabetes)
+			ELSE 0 
+		END as sum_diabetes,
+		CASE 
+			WHEN SUM(icd9_mci) > 0 
+				THEN SUM(icd9_mci)
+			ELSE 0 
+		END as sum_mci,
+		CASE 
+			WHEN SUM(icd9_dementia) > 0 
+				THEN SUM(icd9_dementia)
+			ELSE 0 
+		END as sum_dementia,
+		CASE 
+			WHEN SUM(icd9_depression) > 0 
+				THEN SUM(icd9_depression)
+			ELSE 0 
+		END as sum_depression,
+		CASE 
+			WHEN SUM(icd9_stroke) > 0 
+				THEN SUM(icd9_stroke)
+			ELSE 0 
+		END as sum_stroke,
+		CASE 
+			WHEN SUM(icd9_hepatitis_c) > 0 
+				THEN SUM(icd9_hepatitis_c)
+			ELSE 0 
+		END as sum_hepatitis_c,
+		CASE 
+			WHEN SUM(icd9_asthma) > 0 
+				THEN SUM(icd9_asthma)
+			ELSE 0 
+		END as sum_asthma,
+		CASE 
+			WHEN SUM(icd9_cad) > 0 
+				THEN SUM(icd9_cad)
+			ELSE 0 
+		END as sum_cad,
+		CASE 
+			WHEN SUM(icd9_chf) > 0 
+				THEN SUM(icd9_chf)
+			ELSE 0 
+		END as sum_chf,
+		CASE 
+			WHEN SUM(icd9_pvd) > 0 
+				THEN SUM(icd9_pvd)
+			ELSE 0 
+		END as sum_pvd
+	FROM (
+		SELECT *, 
+		-- Diabetes
+			CASE
+				WHEN PD.icd9code LIKE '250.40'
+					OR PD.icd9code LIKE '250.50'
+					OR PD.icd9code LIKE '250.60'
+						THEN 1
+				ELSE 0
+			END AS icd9_diabetes,
+		-- Myocardial Infarction
+			CASE
+				WHEN PD.icd9code LIKE '412%'
+					OR PD.icd9code LIKE '410%'
+						THEN 1
+				ELSE 0
+			END AS icd9_mci,
+		-- Dementia
+			CASE 
+				WHEN PD.icd9code IN (
+					'290.0',
+					'331.20',
+					'294.10'
+				) 
+				OR PD.icd9code LIKE '290.%' 
+					THEN 3
+				ELSE 0 
+			END as icd9_dementia,
+		-- Depression
+			CASE 
+				WHEN PD.icd9code IN (
+					'300.4',
+					'301.12',
+					'296.2',
+					'296.3',
+					'296.5',
+					'300.4',
+					'311'
+				) 
+				OR PD.icd9code LIKE '309.%' 
+					THEN 2
+				ELSE 0 
+			END AS icd9_depression,
+		-- Hepatitis C
+			CASE 
+				WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
+					THEN 2
+				ELSE 0 
+			END AS icd9_hepatitis_c,
+		-- Stroke
+			CASE 
+				WHEN (PD.icd9code LIKE '433.%' OR
+			PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
+					THEN 4
+				ELSE 0 
+			END AS icd9_stroke,
+		-- Asthma
+			CASE 
+				WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
+					THEN 1
+				ELSE 0 
+			END AS icd9_asthma,
+		-- CAD
+			CASE 
+				WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
+					THEN 2
+				ELSE 0 
+			END AS icd9_cad,
+		-- CHF
+			CASE 
+				WHEN PD.icd9code LIKE '428.%' OR
+				PD.icd9code IN (
+					'398.91', 
+					'402.01', 
+					'402.11', 
+					'402.91', 
+					'404.01', 
+					'404.03', 
+					'404.11', 
+					'404.13', 
+					'404.91', 
+					'404.93', 
+					'425.40', 
+					'425.50', 
+					'425.6', 
+					'425.7', 
+					'425.8', 
+					'425.9'
+				) 
+					THEN 4
+				ELSE 0 
+			END AS icd9_chf,
+		-- PVD
+			CASE 
+				WHEN PD.icd9code LIKE '441.%' 
+				OR PD.icd9code LIKE '440.%' 
+				OR PD.icd9code LIKE '443.%' 
+				or PD.icd9code LIKE '093.%' 
+				or PD.icd9code LIKE '437.3%' 
+				or PD.icd9code LIKE '447.1%' 
+				or PD.icd9code LIKE '557.1%' 
+				or PD.icd9code LIKE '557.9%' 
+				or PD.icd9code LIKE 'V43.4%' 
+					THEN 1
+				ELSE 0 
+			END AS icd9_pvd
+		FROM patient_diagnosis as PD
+	)
+	GROUP BY patientid
+"
+
+# Query
+queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+queryResult[1:10,]
+
+# Compute E
+C.weight <- (
+	queryResult$sum_diabetes + 
+	queryResult$sum_mci +
+	queryResult$sum_cad + 
+	queryResult$sum_chf + 
+	queryResult$sum_asthma + 
+	queryResult$sum_hepatitis_c + 
+	queryResult$sum_dementia + 
+	queryResult$sum_stroke + 
+	queryResult$sum_depression + 
+	queryResult$sum_pvd
+)
+
+# Apply Max C Limit
+queryResult$C_weight <- ifelse(C.weight >= 4, 5, C.weight)
+
+# Summarize Query
+summary(queryResult)
+
+# Merge E Into Analytics Table
+analytics.table <- merge(analytics.table, queryResult[c("patientid", "C_weight")], by = "patientid", all.x = TRUE)
 
 # How Many Rows Do We Have?
 message("n Rows: ", dim(analytics.table)[1])
@@ -418,7 +613,7 @@ dbDisconnect(SQLiteConnection)
 
 ```
 
-## Problem Set 2 – LACE Sum
+## Problem Set 2 – LACE Sum / C Weighted LACE Sum
 
 ```{r}
 
@@ -426,6 +621,12 @@ analytics.table$LACE_sum <- (
 	analytics.table$L + 
 	analytics.table$A + 
 	analytics.table$C + 
+	analytics.table$E
+)
+analytics.table$LACE_sum_C_weight <- (
+	analytics.table$L + 
+	analytics.table$A + 
+	analytics.table$C_weight + 
 	analytics.table$E
 )
 

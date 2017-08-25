@@ -360,24 +360,7 @@ analytics.table[1:10,]</code></pre>
 <h2>Problem Set 2 – C</h2>
 <pre class="r"><code># Narrow By ICD-9 Codes And Match To String
 # ICD-9 Codes Manually Reviewed &amp; Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-# Loose Weighting Scheme:
-#   Diabetes    = 2
-#   MCI         = 2
-#   CAD         = 2
-#   CHF         = 3
-#   Asthma      = 1
-#   Hepatitis C = 2
-#   Dementia    = 2
-#   Stroke      = 3
-#   Depression  = 1
-#   PVD         = 2
-# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
-#
-# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
-#   CAD
-#   Asthma
-#   Hepatitis C
-#   Stroke
+    # Unweighted
 
 sqlStatement &lt;- &quot;
     SELECT patientid,
@@ -568,7 +551,7 @@ queryResult[1:10,]</code></pre>
 ## 9                0          0       0       0       0
 ## 10               0          0       0       0       0</code></pre>
 <pre class="r"><code># Compute E
-queryResult$C &lt;- (
+C &lt;- (
     queryResult$sum_diabetes + 
     queryResult$sum_mci +
     queryResult$sum_cad + 
@@ -580,6 +563,9 @@ queryResult$C &lt;- (
     queryResult$sum_depression + 
     queryResult$sum_pvd
 )
+
+# Apply Max C Limit
+queryResult$C &lt;- ifelse(C &gt;= 4, 5, C)
 
 # Summarize Query
 summary(queryResult)</code></pre>
@@ -603,24 +589,270 @@ summary(queryResult)</code></pre>
 ##  Min.   :0.000000   Min.   :0.0000   Min.   :0.0000   Min.   :0.000  
 ##  1st Qu.:0.000000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:1.000  
 ##  Median :0.000000   Median :1.0000   Median :0.0000   Median :2.000  
-##  Mean   :0.002035   Mean   :0.6579   Mean   :0.3785   Mean   :1.659  
+##  Mean   :0.002035   Mean   :0.6579   Mean   :0.3785   Mean   :1.689  
 ##  3rd Qu.:0.000000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:2.000  
-##  Max.   :1.000000   Max.   :1.0000   Max.   :1.0000   Max.   :6.000  
+##  Max.   :1.000000   Max.   :1.0000   Max.   :1.0000   Max.   :5.000  
 ## </code></pre>
 <pre class="r"><code># Merge E Into Analytics Table
 analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)
 
-# Patients Should Have Multiple Comorbidities
-analytics.table[c(462, 551, 1075),]</code></pre>
-<pre><code>##      patientid Event_ID encounter_type         outcome Admit_date
-## 462        462      150             22             SNF 2014-01-01
-## 551        551      341             22 Discharged Home 2014-01-01
-## 1075      1075      992             22 Discharged Home 2014-01-01
-##      Discharge_date   Admit_source readmit_30 index_admit L A C
-## 462      2014-01-06       Transfer          0           1 4 0 3
-## 551      2014-01-03 Emergency Room          0           1 2 3 3
-## 1075     2014-01-08 Emergency Room          1           1 5 3 3</code></pre>
-<pre class="r"><code># How Many Rows Do We Have?
+
+# Narrow By ICD-9 Codes And Match To String
+# ICD-9 Codes Manually Reviewed &amp; Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
+# Loose Weighting Scheme:
+#   Diabetes    = 1
+#   MCI         = 1
+#   CAD         = 2
+#   CHF         = 4
+#   Asthma      = 1
+#   Hepatitis C = 2
+#   Dementia    = 3
+#   Stroke      = 4
+#   Depression  = 2
+#   PVD         = 1
+# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
+#
+# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
+#   CAD
+#   Asthma
+#   Hepatitis C
+#   Stroke
+
+sqlStatement &lt;- &quot;
+    SELECT patientid,
+        CASE 
+            WHEN SUM(icd9_diabetes) &gt; 0 
+                THEN SUM(icd9_diabetes)
+            ELSE 0 
+        END as sum_diabetes,
+        CASE 
+            WHEN SUM(icd9_mci) &gt; 0 
+                THEN SUM(icd9_mci)
+            ELSE 0 
+        END as sum_mci,
+        CASE 
+            WHEN SUM(icd9_dementia) &gt; 0 
+                THEN SUM(icd9_dementia)
+            ELSE 0 
+        END as sum_dementia,
+        CASE 
+            WHEN SUM(icd9_depression) &gt; 0 
+                THEN SUM(icd9_depression)
+            ELSE 0 
+        END as sum_depression,
+        CASE 
+            WHEN SUM(icd9_stroke) &gt; 0 
+                THEN SUM(icd9_stroke)
+            ELSE 0 
+        END as sum_stroke,
+        CASE 
+            WHEN SUM(icd9_hepatitis_c) &gt; 0 
+                THEN SUM(icd9_hepatitis_c)
+            ELSE 0 
+        END as sum_hepatitis_c,
+        CASE 
+            WHEN SUM(icd9_asthma) &gt; 0 
+                THEN SUM(icd9_asthma)
+            ELSE 0 
+        END as sum_asthma,
+        CASE 
+            WHEN SUM(icd9_cad) &gt; 0 
+                THEN SUM(icd9_cad)
+            ELSE 0 
+        END as sum_cad,
+        CASE 
+            WHEN SUM(icd9_chf) &gt; 0 
+                THEN SUM(icd9_chf)
+            ELSE 0 
+        END as sum_chf,
+        CASE 
+            WHEN SUM(icd9_pvd) &gt; 0 
+                THEN SUM(icd9_pvd)
+            ELSE 0 
+        END as sum_pvd
+    FROM (
+        SELECT *, 
+        -- Diabetes
+            CASE
+                WHEN PD.icd9code LIKE '250.40'
+                    OR PD.icd9code LIKE '250.50'
+                    OR PD.icd9code LIKE '250.60'
+                        THEN 1
+                ELSE 0
+            END AS icd9_diabetes,
+        -- Myocardial Infarction
+            CASE
+                WHEN PD.icd9code LIKE '412%'
+                    OR PD.icd9code LIKE '410%'
+                        THEN 1
+                ELSE 0
+            END AS icd9_mci,
+        -- Dementia
+            CASE 
+                WHEN PD.icd9code IN (
+                    '290.0',
+                    '331.20',
+                    '294.10'
+                ) 
+                OR PD.icd9code LIKE '290.%' 
+                    THEN 3
+                ELSE 0 
+            END as icd9_dementia,
+        -- Depression
+            CASE 
+                WHEN PD.icd9code IN (
+                    '300.4',
+                    '301.12',
+                    '296.2',
+                    '296.3',
+                    '296.5',
+                    '300.4',
+                    '311'
+                ) 
+                OR PD.icd9code LIKE '309.%' 
+                    THEN 2
+                ELSE 0 
+            END AS icd9_depression,
+        -- Hepatitis C
+            CASE 
+                WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
+                    THEN 2
+                ELSE 0 
+            END AS icd9_hepatitis_c,
+        -- Stroke
+            CASE 
+                WHEN (PD.icd9code LIKE '433.%' OR
+            PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
+                    THEN 4
+                ELSE 0 
+            END AS icd9_stroke,
+        -- Asthma
+            CASE 
+                WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
+                    THEN 1
+                ELSE 0 
+            END AS icd9_asthma,
+        -- CAD
+            CASE 
+                WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
+                    THEN 2
+                ELSE 0 
+            END AS icd9_cad,
+        -- CHF
+            CASE 
+                WHEN PD.icd9code LIKE '428.%' OR
+                PD.icd9code IN (
+                    '398.91', 
+                    '402.01', 
+                    '402.11', 
+                    '402.91', 
+                    '404.01', 
+                    '404.03', 
+                    '404.11', 
+                    '404.13', 
+                    '404.91', 
+                    '404.93', 
+                    '425.40', 
+                    '425.50', 
+                    '425.6', 
+                    '425.7', 
+                    '425.8', 
+                    '425.9'
+                ) 
+                    THEN 4
+                ELSE 0 
+            END AS icd9_chf,
+        -- PVD
+            CASE 
+                WHEN PD.icd9code LIKE '441.%' 
+                OR PD.icd9code LIKE '440.%' 
+                OR PD.icd9code LIKE '443.%' 
+                or PD.icd9code LIKE '093.%' 
+                or PD.icd9code LIKE '437.3%' 
+                or PD.icd9code LIKE '447.1%' 
+                or PD.icd9code LIKE '557.1%' 
+                or PD.icd9code LIKE '557.9%' 
+                or PD.icd9code LIKE 'V43.4%' 
+                    THEN 1
+                ELSE 0 
+            END AS icd9_pvd
+        FROM patient_diagnosis as PD
+    )
+    GROUP BY patientid
+&quot;
+
+# Query
+queryResult &lt;- dbGetQuery(SQLiteConnection, sqlStatement)
+queryResult[1:10,]</code></pre>
+<pre><code>##    patientid sum_diabetes sum_mci sum_dementia sum_depression sum_stroke
+## 1         NA            0       0            0              0          0
+## 2          1            0       1            0              0          0
+## 3          2            0       0            0              0          0
+## 4          3            0       0            0              0          0
+## 5          4            0       0            0              0          0
+## 6          5            0       0            0              0          4
+## 7          6            0       0            0              0          0
+## 8          7            0       0            0              0          0
+## 9          8            0       0            0              0          0
+## 10         9            0       1            0              0          0
+##    sum_hepatitis_c sum_asthma sum_cad sum_chf sum_pvd
+## 1                0          0       0       0       0
+## 2                0          0       0       4       0
+## 3                0          0       0       4       1
+## 4                0          0       0       4       1
+## 5                0          0       0       4       1
+## 6                0          0       0       4       1
+## 7                0          0       0       4       0
+## 8                0          0       0       4       0
+## 9                0          0       0       0       0
+## 10               0          0       0       0       0</code></pre>
+<pre class="r"><code># Compute E
+C.weight &lt;- (
+    queryResult$sum_diabetes + 
+    queryResult$sum_mci +
+    queryResult$sum_cad + 
+    queryResult$sum_chf + 
+    queryResult$sum_asthma + 
+    queryResult$sum_hepatitis_c + 
+    queryResult$sum_dementia + 
+    queryResult$sum_stroke + 
+    queryResult$sum_depression + 
+    queryResult$sum_pvd
+)
+
+# Apply Max C Limit
+queryResult$C_weight &lt;- ifelse(C.weight &gt;= 4, 5, C.weight)
+
+# Summarize Query
+summary(queryResult)</code></pre>
+<pre><code>##    patientid      sum_diabetes        sum_mci        sum_dementia     
+##  Min.   :    1   Min.   :0.00000   Min.   :0.0000   Min.   :0.000000  
+##  1st Qu.: 8634   1st Qu.:0.00000   1st Qu.:0.0000   1st Qu.:0.000000  
+##  Median :17265   Median :0.00000   Median :0.0000   Median :0.000000  
+##  Mean   :17266   Mean   :0.01535   Mean   :0.3124   Mean   :0.008894  
+##  3rd Qu.:25900   3rd Qu.:0.00000   3rd Qu.:1.0000   3rd Qu.:0.000000  
+##  Max.   :34532   Max.   :1.00000   Max.   :1.0000   Max.   :3.000000  
+##  NA's   :1                                                            
+##  sum_depression      sum_stroke     sum_hepatitis_c    sum_asthma    
+##  Min.   :0.00000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+##  1st Qu.:0.00000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
+##  Median :0.00000   Median :0.0000   Median :0.0000   Median :0.0000  
+##  Mean   :0.02924   Mean   :0.1988   Mean   :0.1139   Mean   :0.1684  
+##  3rd Qu.:0.00000   3rd Qu.:0.0000   3rd Qu.:0.0000   3rd Qu.:0.0000  
+##  Max.   :2.00000   Max.   :4.0000   Max.   :2.0000   Max.   :1.0000  
+##                                                                      
+##     sum_cad            sum_chf         sum_pvd          C_weight    
+##  Min.   :0.000000   Min.   :0.000   Min.   :0.0000   Min.   :0.000  
+##  1st Qu.:0.000000   1st Qu.:0.000   1st Qu.:0.0000   1st Qu.:2.000  
+##  Median :0.000000   Median :4.000   Median :0.0000   Median :5.000  
+##  Mean   :0.004069   Mean   :2.632   Mean   :0.3785   Mean   :3.716  
+##  3rd Qu.:0.000000   3rd Qu.:4.000   3rd Qu.:1.0000   3rd Qu.:5.000  
+##  Max.   :2.000000   Max.   :4.000   Max.   :1.0000   Max.   :5.000  
+## </code></pre>
+<pre class="r"><code># Merge E Into Analytics Table
+analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C_weight&quot;)], by = &quot;patientid&quot;, all.x = TRUE)
+
+# How Many Rows Do We Have?
 message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
 </div>
@@ -682,17 +914,17 @@ analytics.table[0:10,]</code></pre>
 ## 8          8     2556             22             SNF 2014-01-01
 ## 9          9      649             22             SNF 2014-01-01
 ## 10        10      979             22             SNF 2014-01-01
-##    Discharge_date   Admit_source readmit_30 index_admit L A C E
-## 1      2014-01-08 Emergency Room          1           1 5 3 2 1
-## 2      2014-01-13         Clinic          0           1 5 0 2 1
-## 3      2014-01-07       Transfer          0           1 4 0 2 0
-## 4      2014-01-07 Emergency Room          0           1 4 3 2 0
-## 5      2014-01-08 Emergency Room          1           1 5 3 3 0
-## 6      2014-01-08 Emergency Room          1           1 5 3 1 1
-## 7      2014-01-16 Emergency Room          0           1 7 3 1 2
-## 8      2014-01-06       Transfer          0           1 4 0 0 0
-## 9      2014-01-08 Emergency Room          0           1 5 3 1 0
-## 10     2014-01-04 Emergency Room          0           1 3 3 1 0</code></pre>
+##    Discharge_date   Admit_source readmit_30 index_admit L A C C_weight E
+## 1      2014-01-08 Emergency Room          1           1 5 3 2        5 1
+## 2      2014-01-13         Clinic          0           1 5 0 2        5 1
+## 3      2014-01-07       Transfer          0           1 4 0 2        5 0
+## 4      2014-01-07 Emergency Room          0           1 4 3 2        5 0
+## 5      2014-01-08 Emergency Room          1           1 5 3 3        5 0
+## 6      2014-01-08 Emergency Room          1           1 5 3 1        5 1
+## 7      2014-01-16 Emergency Room          0           1 7 3 1        5 2
+## 8      2014-01-06       Transfer          0           1 4 0 0        0 0
+## 9      2014-01-08 Emergency Room          0           1 5 3 1        1 0
+## 10     2014-01-04 Emergency Room          0           1 3 3 1        5 0</code></pre>
 <pre class="r"><code># Disconnect From Database
 dbDisconnect(SQLiteConnection)</code></pre>
 </div>
@@ -702,6 +934,12 @@ dbDisconnect(SQLiteConnection)</code></pre>
     analytics.table$L + 
     analytics.table$A + 
     analytics.table$C + 
+    analytics.table$E
+)
+analytics.table$LACE_sum_C_weight &lt;- (
+    analytics.table$L + 
+    analytics.table$A + 
+    analytics.table$C_weight + 
     analytics.table$E
 )
 
@@ -718,17 +956,28 @@ analytics.table[1:10,]</code></pre>
 ## 8          8     2556             22             SNF 2014-01-01
 ## 9          9      649             22             SNF 2014-01-01
 ## 10        10      979             22             SNF 2014-01-01
-##    Discharge_date   Admit_source readmit_30 index_admit L A C E LACE_sum
-## 1      2014-01-08 Emergency Room          1           1 5 3 2 1       11
-## 2      2014-01-13         Clinic          0           1 5 0 2 1        8
-## 3      2014-01-07       Transfer          0           1 4 0 2 0        6
-## 4      2014-01-07 Emergency Room          0           1 4 3 2 0        9
-## 5      2014-01-08 Emergency Room          1           1 5 3 3 0       11
-## 6      2014-01-08 Emergency Room          1           1 5 3 1 1       10
-## 7      2014-01-16 Emergency Room          0           1 7 3 1 2       13
-## 8      2014-01-06       Transfer          0           1 4 0 0 0        4
-## 9      2014-01-08 Emergency Room          0           1 5 3 1 0        9
-## 10     2014-01-04 Emergency Room          0           1 3 3 1 0        7</code></pre>
+##    Discharge_date   Admit_source readmit_30 index_admit L A C C_weight E
+## 1      2014-01-08 Emergency Room          1           1 5 3 2        5 1
+## 2      2014-01-13         Clinic          0           1 5 0 2        5 1
+## 3      2014-01-07       Transfer          0           1 4 0 2        5 0
+## 4      2014-01-07 Emergency Room          0           1 4 3 2        5 0
+## 5      2014-01-08 Emergency Room          1           1 5 3 3        5 0
+## 6      2014-01-08 Emergency Room          1           1 5 3 1        5 1
+## 7      2014-01-16 Emergency Room          0           1 7 3 1        5 2
+## 8      2014-01-06       Transfer          0           1 4 0 0        0 0
+## 9      2014-01-08 Emergency Room          0           1 5 3 1        1 0
+## 10     2014-01-04 Emergency Room          0           1 3 3 1        5 0
+##    LACE_sum LACE_sum_C_weight
+## 1        11                14
+## 2         8                11
+## 3         6                 9
+## 4         9                12
+## 5        11                13
+## 6        10                14
+## 7        13                17
+## 8         4                 4
+## 9         9                 9
+## 10        7                11</code></pre>
 <pre class="r"><code># Summarize
 summary(analytics.table)</code></pre>
 <pre><code>##    patientid        Event_ID     encounter_type   outcome         
@@ -751,18 +1000,18 @@ summary(analytics.table)</code></pre>
 ##  Min.   :1    Min.   :0.00   Min.   :0.000   Min.   :0.000  
 ##  1st Qu.:1    1st Qu.:2.00   1st Qu.:0.000   1st Qu.:1.000  
 ##  Median :1    Median :4.00   Median :0.000   Median :2.000  
-##  Mean   :1    Mean   :3.65   Mean   :1.414   Mean   :1.659  
+##  Mean   :1    Mean   :3.65   Mean   :1.414   Mean   :1.689  
 ##  3rd Qu.:1    3rd Qu.:5.00   3rd Qu.:3.000   3rd Qu.:2.000  
-##  Max.   :1    Max.   :7.00   Max.   :3.000   Max.   :6.000  
+##  Max.   :1    Max.   :7.00   Max.   :3.000   Max.   :5.000  
 ##                                              NA's   :129    
-##        E           LACE_sum     
-##  Min.   :0.00   Min.   : 0.000  
-##  1st Qu.:0.00   1st Qu.: 5.000  
-##  Median :0.00   Median : 7.000  
-##  Mean   :0.49   Mean   : 7.209  
-##  3rd Qu.:1.00   3rd Qu.: 9.000  
-##  Max.   :4.00   Max.   :18.000  
-##  NA's   :4221   NA's   :4337</code></pre>
+##     C_weight           E           LACE_sum      LACE_sum_C_weight
+##  Min.   :0.000   Min.   :0.00   Min.   : 0.000   Min.   : 0.000   
+##  1st Qu.:2.000   1st Qu.:0.00   1st Qu.: 5.000   1st Qu.: 7.000   
+##  Median :5.000   Median :0.00   Median : 7.000   Median : 9.000   
+##  Mean   :3.716   Mean   :0.49   Mean   : 7.239   Mean   : 9.263   
+##  3rd Qu.:5.000   3rd Qu.:1.00   3rd Qu.: 9.000   3rd Qu.:12.000   
+##  Max.   :5.000   Max.   :4.00   Max.   :19.000   Max.   :19.000   
+##  NA's   :129     NA's   :4221   NA's   :4337     NA's   :4337</code></pre>
 <pre class="r"><code># How Many Rows Do We Have?
 message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>

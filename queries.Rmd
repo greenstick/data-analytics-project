@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include = FALSE}
 
-	knitr::opts_chunk$set(echo = TRUE)
+    knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
@@ -17,74 +17,74 @@ output: html_document
 
 ```{r}
 
-	# Load Libraries
-	library(RSQLite)
-	library(zoo)
-	library(tidyverse)
-	library(broom)
-	library(caret)
-	library(ROCR)
+    # Load Libraries
+    library(RSQLite)
+    library(zoo)
+    library(tidyverse)
+    library(broom)
+    library(caret)
+    library(ROCR)
 
-	# Global References
-	seed 			<- 111
-	partition 		<- 0.8
-	dependent 		<- "readmit_30"
-	database.name 	<- "patient1.sqlite" 	# Database name
-	data.dir 		<- "data/raw/"			# Data file directory
-	data.format 	<- ".txt"				# Data file format
-	data.overwrite	<- TRUE 				# Helps on development, but not something to default to TRUE
-	data.frames 	<- list()
+    # Global References
+    seed            <- 111
+    partition       <- 0.8
+    dependent       <- "readmit_30"
+    database.name   <- "patient1.sqlite"    # Database name
+    data.dir        <- "data/raw/"          # Data file directory
+    data.format     <- ".txt"               # Data file format
+    data.overwrite  <- TRUE                 # Helps on development, but not something to default to TRUE
+    data.frames     <- list()
 
-	# Connect to SQLite DB
-	SQLiteConnection <- dbConnect(drv = SQLite(), dbname = database.name)
+    # Connect to SQLite DB
+    SQLiteConnection <- dbConnect(drv = SQLite(), dbname = database.name)
 
-	# Iterate Through Data Files & Load into SQLite DB - Indicate Whether Each Query is Successful or Not
-	for (file in list.files(data.dir)) {
-		key 	<- sub(data.format, "", file)
-		path    <- paste(data.dir, file, sep = "")
-		val 	<- read.table(path, header = TRUE, sep = "|")
-		# Loading into DBs Can be Error Prone, Wrap It in a TryCatch For Fun
-		handle 	<- tryCatch ({
-				# Write SQLite Table from DF
-				message("Writing table: ", key)
-				dbWriteTable(conn = SQLiteConnection, name = key, value = val, overwrite = data.overwrite)
-			},
-			# Output Any Errors
-			error = function (status) {
-				message("Error writing table: ", key)
-				message(status, "\r")
-			},
-			# Output Any Warnings
-			warning = function (status) {
-				message("A warning occurred while writing table: ", key)
-				message(status, "\r")
-			},
-			# Validate Table Creation via Comparison of n SQL Table Rows to n DF Rows
-			finally = {
-				query 	<- paste("select count(*) from", key)
-				result 	<- dbGetQuery(SQLiteConnection, query)
-				valid 	<- (nrow(val) == result)[1,]
-				if (valid) {
-					message("Table validated: ", key, "\n")
-				} else {
-					message("Table invalid: ", key, "\n")
-				}
-			}
-		)
-	}
+    # Iterate Through Data Files & Load into SQLite DB - Indicate Whether Each Query is Successful or Not
+    for (file in list.files(data.dir)) {
+        key     <- sub(data.format, "", file)
+        path    <- paste(data.dir, file, sep = "")
+        val     <- read.table(path, header = TRUE, sep = "|")
+        # Loading into DBs Can be Error Prone, Wrap It in a TryCatch For Fun
+        handle  <- tryCatch ({
+                # Write SQLite Table from DF
+                message("Writing table: ", key)
+                dbWriteTable(conn = SQLiteConnection, name = key, value = val, overwrite = data.overwrite)
+            },
+            # Output Any Errors
+            error = function (status) {
+                message("Error writing table: ", key)
+                message(status, "\r")
+            },
+            # Output Any Warnings
+            warning = function (status) {
+                message("A warning occurred while writing table: ", key)
+                message(status, "\r")
+            },
+            # Validate Table Creation via Comparison of n SQL Table Rows to n DF Rows
+            finally = {
+                query   <- paste("select count(*) from", key)
+                result  <- dbGetQuery(SQLiteConnection, query)
+                valid   <- (nrow(val) == result)[1,]
+                if (valid) {
+                    message("Table validated: ", key, "\n")
+                } else {
+                    message("Table invalid: ", key, "\n")
+                }
+            }
+        )
+    }
 
-	# Connect To DB
-	SQLiteConnection <- dbConnect(drv = SQLite(), dbname = "db/patient.sqlite")
+    # Connect To DB
+    SQLiteConnection <- dbConnect(drv = SQLite(), dbname = "db/patient.sqlite")
 
-	# Get patient_encounter_hosp_mod
-	sqlStatement <- "SELECT * FROM patient_encounter_hosp_mod"
-	pehm <- dbGetQuery(SQLiteConnection, sqlStatement)
+    # Get patient_encounter_hosp_mod
+    sqlStatement <- "SELECT * FROM patient_encounter_hosp_mod"
+    pehm <- dbGetQuery(SQLiteConnection, sqlStatement)
 
-	# Create Analytics Table Reference
-	analytics.table <- pehm
+    # Create Analytics Table Reference
+    analytics.table <- pehm
 
-	# Print Out Table
-	analytics.table[1:10,]
+    # Print Out Table
+    analytics.table[1:10,]
 
 ```
 
@@ -92,64 +92,64 @@ output: html_document
 
 ```{r}
 
-	# Compute Column L - Note We Offset By -1 On Conditions Because Both Admission & Discharge Dates Count 
-	sqlStatement <- "
-		SELECT PEH.*, 
-			CASE
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 1
-					THEN 1
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 2
-					THEN 2
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 3
-					THEN 3
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 3 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 7 
-					THEN 4
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 6 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 14 
-					THEN 5
-				WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 14 
-					THEN 7
-				ELSE 0
-			END AS L
-		FROM patient_encounter_hosp_mod as PEH
-		WHERE PEH.index_admit=1
-	"
+    # Compute Column L - Note We Offset By -1 On Conditions Because Both Admission & Discharge Dates Count 
+    sqlStatement <- "
+        SELECT PEH.*, 
+            CASE
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 1
+                    THEN 1
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 2
+                    THEN 2
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) = 3
+                    THEN 3
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 3 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 7 
+                    THEN 4
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 6 AND julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) < 14 
+                    THEN 5
+                WHEN julianday(PEH.Discharge_date) - julianday(PEH.Admit_date) > 14 
+                    THEN 7
+                ELSE 0
+            END AS L
+        FROM patient_encounter_hosp_mod as PEH
+        WHERE PEH.index_admit=1
+    "
 
-	# Query & Verify Result
-	queryResult <- dbGetQuery(SQLiteConnection, sqlStatement, overwrite = TRUE)
-	queryResult[1:10,]
+    # Query & Verify Result
+    queryResult <- dbGetQuery(SQLiteConnection, sqlStatement, overwrite = TRUE)
+    queryResult[1:10,]
 
-	# Set Analytics Table To This Query Result As Starting Point
-	analytics.table <- queryResult
+    # Set Analytics Table To This Query Result As Starting Point
+    analytics.table <- queryResult
 
-	# How Many Rows Do We Have?
-	message("n Rows: ", dim(analytics.table)[1])
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
 
 ```
 
 # Problem Set 1 – A
 ```{r}
 
-	# Compute Column A
-	sqlStatement <- "
-		SELECT PEH.*, 
-			CASE
-				WHEN PEH.Admit_source = 'Emergency Room'
-					THEN 3
-				ELSE 0
-			END AS A
-		FROM patient_encounter_hosp_mod AS PEH
-		WHERE PEH.index_admit=1
-	"
+    # Compute Column A
+    sqlStatement <- "
+        SELECT PEH.*, 
+            CASE
+                WHEN PEH.Admit_source = 'Emergency Room'
+                    THEN 3
+                ELSE 0
+            END AS A
+        FROM patient_encounter_hosp_mod AS PEH
+        WHERE PEH.index_admit=1
+    "
 
-	# Query & Verify Result
-	queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
-	queryResult[1:10,]
+    # Query & Verify Result
+    queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+    queryResult[1:10,]
 
-	# Append A to Analytics Table
-	analytics.table$A <- queryResult$A
+    # Append A to Analytics Table
+    analytics.table$A <- queryResult$A
 
-	# Show Updated Table
-	analytics.table[1:10,]
+    # Show Updated Table
+    analytics.table[1:10,]
 
 ```
 
@@ -157,414 +157,414 @@ output: html_document
 
 ```{r}
 
-	# Narrow By ICD-9 Codes And Match To String
-	# ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-		# Unweighted
+    # Narrow By ICD-9 Codes And Match To String
+    # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
+        # Unweighted
 
-	sqlStatement <- "
-		SELECT patientid,
-			CASE 
-				WHEN SUM(icd9_diabetes) > 0 
-					THEN SUM(icd9_diabetes)
-				ELSE 0 
-			END as sum_diabetes,
-			CASE 
-				WHEN SUM(icd9_mci) > 0 
-					THEN SUM(icd9_mci)
-				ELSE 0 
-			END as sum_mci,
-			CASE 
-				WHEN SUM(icd9_dementia) > 0 
-					THEN SUM(icd9_dementia)
-				ELSE 0 
-			END as sum_dementia,
-			CASE 
-				WHEN SUM(icd9_depression) > 0 
-					THEN SUM(icd9_depression)
-				ELSE 0 
-			END as sum_depression,
-			CASE 
-				WHEN SUM(icd9_stroke) > 0 
-					THEN SUM(icd9_stroke)
-				ELSE 0 
-			END as sum_stroke,
-			CASE 
-				WHEN SUM(icd9_hepatitis_c) > 0 
-					THEN SUM(icd9_hepatitis_c)
-				ELSE 0 
-			END as sum_hepatitis_c,
-			CASE 
-				WHEN SUM(icd9_asthma) > 0 
-					THEN SUM(icd9_asthma)
-				ELSE 0 
-			END as sum_asthma,
-			CASE 
-				WHEN SUM(icd9_cad) > 0 
-					THEN SUM(icd9_cad)
-				ELSE 0 
-			END as sum_cad,
-			CASE 
-				WHEN SUM(icd9_chf) > 0 
-					THEN SUM(icd9_chf)
-				ELSE 0 
-			END as sum_chf,
-			CASE 
-				WHEN SUM(icd9_pvd) > 0 
-					THEN SUM(icd9_pvd)
-				ELSE 0 
-			END as sum_pvd
-		FROM (
-			SELECT *, 
-			-- Diabetes
-				CASE
-					WHEN PD.icd9code LIKE '250.40'
-						OR PD.icd9code LIKE '250.50'
-						OR PD.icd9code LIKE '250.60'
-							THEN 1
-					ELSE 0
-				END AS icd9_diabetes,
-			-- Myocardial Infarction
-				CASE
-					WHEN PD.icd9code LIKE '412%'
-						OR PD.icd9code LIKE '410%'
-							THEN 1
-					ELSE 0
-				END AS icd9_mci,
-			-- Dementia
-				CASE 
-					WHEN PD.icd9code IN (
-						'290.0',
-						'331.20',
-						'294.10'
-					) 
-					OR PD.icd9code LIKE '290.%' 
-						THEN 1 
-					ELSE 0 
-				END as icd9_dementia,
-			-- Depression
-				CASE 
-					WHEN PD.icd9code IN (
-						'300.4',
-						'301.12',
-						'296.2',
-						'296.3',
-						'296.5',
-						'300.4',
-						'311'
-					) 
-					OR PD.icd9code LIKE '309.%' 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_depression,
-			-- Hepatitis C
-				CASE 
-					WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_hepatitis_c,
-			-- Stroke
-				CASE 
-					WHEN (PD.icd9code LIKE '433.%' OR
-				PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_stroke,
-			-- Asthma
-				CASE 
-					WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
-						THEN 1 
-					ELSE 0 
-				END AS icd9_asthma,
-			-- CAD
-				CASE 
-					WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_cad,
-			-- CHF
-				CASE 
-					WHEN PD.icd9code LIKE '428.%' OR
-					PD.icd9code IN (
-						'398.91', 
-						'402.01', 
-						'402.11', 
-						'402.91', 
-						'404.01', 
-						'404.03', 
-						'404.11', 
-						'404.13', 
-						'404.91', 
-						'404.93', 
-						'425.40', 
-						'425.50', 
-						'425.6', 
-						'425.7', 
-						'425.8', 
-						'425.9'
-					) 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_chf,
-			-- PVD
-				CASE 
-					WHEN PD.icd9code LIKE '441.%' 
-					OR PD.icd9code LIKE '440.%' 
-					OR PD.icd9code LIKE '443.%' 
-					or PD.icd9code LIKE '093.%' 
-					or PD.icd9code LIKE '437.3%' 
-					or PD.icd9code LIKE '447.1%' 
-					or PD.icd9code LIKE '557.1%' 
-					or PD.icd9code LIKE '557.9%' 
-					or PD.icd9code LIKE 'V43.4%' 
-						THEN 1 
-					ELSE 0 
-				END AS icd9_pvd
-			FROM patient_diagnosis as PD
-		)
-		GROUP BY patientid
-	"
+    sqlStatement <- "
+        SELECT patientid,
+            CASE 
+                WHEN SUM(icd9_diabetes) > 0 
+                    THEN SUM(icd9_diabetes)
+                ELSE 0 
+            END as sum_diabetes,
+            CASE 
+                WHEN SUM(icd9_mci) > 0 
+                    THEN SUM(icd9_mci)
+                ELSE 0 
+            END as sum_mci,
+            CASE 
+                WHEN SUM(icd9_dementia) > 0 
+                    THEN SUM(icd9_dementia)
+                ELSE 0 
+            END as sum_dementia,
+            CASE 
+                WHEN SUM(icd9_depression) > 0 
+                    THEN SUM(icd9_depression)
+                ELSE 0 
+            END as sum_depression,
+            CASE 
+                WHEN SUM(icd9_stroke) > 0 
+                    THEN SUM(icd9_stroke)
+                ELSE 0 
+            END as sum_stroke,
+            CASE 
+                WHEN SUM(icd9_hepatitis_c) > 0 
+                    THEN SUM(icd9_hepatitis_c)
+                ELSE 0 
+            END as sum_hepatitis_c,
+            CASE 
+                WHEN SUM(icd9_asthma) > 0 
+                    THEN SUM(icd9_asthma)
+                ELSE 0 
+            END as sum_asthma,
+            CASE 
+                WHEN SUM(icd9_cad) > 0 
+                    THEN SUM(icd9_cad)
+                ELSE 0 
+            END as sum_cad,
+            CASE 
+                WHEN SUM(icd9_chf) > 0 
+                    THEN SUM(icd9_chf)
+                ELSE 0 
+            END as sum_chf,
+            CASE 
+                WHEN SUM(icd9_pvd) > 0 
+                    THEN SUM(icd9_pvd)
+                ELSE 0 
+            END as sum_pvd
+        FROM (
+            SELECT *, 
+            -- Diabetes
+                CASE
+                    WHEN PD.icd9code LIKE '250.40'
+                        OR PD.icd9code LIKE '250.50'
+                        OR PD.icd9code LIKE '250.60'
+                            THEN 1
+                    ELSE 0
+                END AS icd9_diabetes,
+            -- Myocardial Infarction
+                CASE
+                    WHEN PD.icd9code LIKE '412%'
+                        OR PD.icd9code LIKE '410%'
+                            THEN 1
+                    ELSE 0
+                END AS icd9_mci,
+            -- Dementia
+                CASE 
+                    WHEN PD.icd9code IN (
+                        '290.0',
+                        '331.20',
+                        '294.10'
+                    ) 
+                    OR PD.icd9code LIKE '290.%' 
+                        THEN 1 
+                    ELSE 0 
+                END as icd9_dementia,
+            -- Depression
+                CASE 
+                    WHEN PD.icd9code IN (
+                        '300.4',
+                        '301.12',
+                        '296.2',
+                        '296.3',
+                        '296.5',
+                        '300.4',
+                        '311'
+                    ) 
+                    OR PD.icd9code LIKE '309.%' 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_depression,
+            -- Hepatitis C
+                CASE 
+                    WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_hepatitis_c,
+            -- Stroke
+                CASE 
+                    WHEN (PD.icd9code LIKE '433.%' OR
+                PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_stroke,
+            -- Asthma
+                CASE 
+                    WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_asthma,
+            -- CAD
+                CASE 
+                    WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_cad,
+            -- CHF
+                CASE 
+                    WHEN PD.icd9code LIKE '428.%' OR
+                    PD.icd9code IN (
+                        '398.91', 
+                        '402.01', 
+                        '402.11', 
+                        '402.91', 
+                        '404.01', 
+                        '404.03', 
+                        '404.11', 
+                        '404.13', 
+                        '404.91', 
+                        '404.93', 
+                        '425.40', 
+                        '425.50', 
+                        '425.6', 
+                        '425.7', 
+                        '425.8', 
+                        '425.9'
+                    ) 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_chf,
+            -- PVD
+                CASE 
+                    WHEN PD.icd9code LIKE '441.%' 
+                    OR PD.icd9code LIKE '440.%' 
+                    OR PD.icd9code LIKE '443.%' 
+                    or PD.icd9code LIKE '093.%' 
+                    or PD.icd9code LIKE '437.3%' 
+                    or PD.icd9code LIKE '447.1%' 
+                    or PD.icd9code LIKE '557.1%' 
+                    or PD.icd9code LIKE '557.9%' 
+                    or PD.icd9code LIKE 'V43.4%' 
+                        THEN 1 
+                    ELSE 0 
+                END AS icd9_pvd
+            FROM patient_diagnosis as PD
+        )
+        GROUP BY patientid
+    "
 
-	# Query
-	queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
-	queryResult[1:10,]
+    # Query
+    queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+    queryResult[1:10,]
 
-	# Compute E
-	C <- (
-		queryResult$sum_diabetes + 
-		queryResult$sum_mci +
-		queryResult$sum_cad + 
-		queryResult$sum_chf + 
-		queryResult$sum_asthma + 
-		queryResult$sum_hepatitis_c + 
-		queryResult$sum_dementia + 
-		queryResult$sum_stroke + 
-		queryResult$sum_depression + 
-		queryResult$sum_pvd
-	)
+    # Compute E
+    C <- (
+        queryResult$sum_diabetes + 
+        queryResult$sum_mci +
+        queryResult$sum_cad + 
+        queryResult$sum_chf + 
+        queryResult$sum_asthma + 
+        queryResult$sum_hepatitis_c + 
+        queryResult$sum_dementia + 
+        queryResult$sum_stroke + 
+        queryResult$sum_depression + 
+        queryResult$sum_pvd
+    )
 
-	# Apply Max C Limit
-	queryResult$C <- ifelse(C >= 4, 5, C)
+    # Apply Max C Limit
+    queryResult$C <- ifelse(C >= 4, 5, C)
 
-	# Summarize Query
-	summary(queryResult)
+    # Summarize Query
+    summary(queryResult)
 
-	# Merge E Into Analytics Table
-	analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
+    # Merge E Into Analytics Table
+    analytics.table <- merge(analytics.table, queryResult[c("patientid", "C")], by = "patientid", all.x = TRUE)
 
 
-	# Narrow By ICD-9 Codes And Match To String
-	# ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
-	# Loose Weighting Scheme:
-	# 	Diabetes 	= 1
-	# 	MCI 		= 1
-	#	CAD 		= 2
-	#	CHF 		= 4
-	#	Asthma 		= 1
-	#	Hepatitis C = 2
-	#	Dementia 	= 3
-	#	Stroke 		= 4
-	#	Depression 	= 2
-	#	PVD 		= 1
-	# Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
-	#
-	# String Matching Was Done For Conditions Without Specific ICD-9 Codes:
-	# 	CAD
-	# 	Asthma
-	# 	Hepatitis C
-	# 	Stroke
+    # Narrow By ICD-9 Codes And Match To String
+    # ICD-9 Codes Manually Reviewed & Source From: https://en.wikipedia.org/wiki/List_of_ICD-9_codes](https://en.wikipedia.org/wiki/List_of_ICD-9_codes
+    # Loose Weighting Scheme:
+    #   Diabetes    = 1
+    #   MCI         = 1
+    #   CAD         = 2
+    #   CHF         = 4
+    #   Asthma      = 1
+    #   Hepatitis C = 2
+    #   Dementia    = 3
+    #   Stroke      = 4
+    #   Depression  = 2
+    #   PVD         = 1
+    # Why, No Clue, I Have Little Domain Knowledge Here – It Just Felt Right ;)
+    #
+    # String Matching Was Done For Conditions Without Specific ICD-9 Codes:
+    #   CAD
+    #   Asthma
+    #   Hepatitis C
+    #   Stroke
 
-	sqlStatement <- "
-		SELECT patientid,
-			CASE 
-				WHEN SUM(icd9_diabetes) > 0 
-					THEN SUM(icd9_diabetes)
-				ELSE 0 
-			END as sum_diabetes,
-			CASE 
-				WHEN SUM(icd9_mci) > 0 
-					THEN SUM(icd9_mci)
-				ELSE 0 
-			END as sum_mci,
-			CASE 
-				WHEN SUM(icd9_dementia) > 0 
-					THEN SUM(icd9_dementia)
-				ELSE 0 
-			END as sum_dementia,
-			CASE 
-				WHEN SUM(icd9_depression) > 0 
-					THEN SUM(icd9_depression)
-				ELSE 0 
-			END as sum_depression,
-			CASE 
-				WHEN SUM(icd9_stroke) > 0 
-					THEN SUM(icd9_stroke)
-				ELSE 0 
-			END as sum_stroke,
-			CASE 
-				WHEN SUM(icd9_hepatitis_c) > 0 
-					THEN SUM(icd9_hepatitis_c)
-				ELSE 0 
-			END as sum_hepatitis_c,
-			CASE 
-				WHEN SUM(icd9_asthma) > 0 
-					THEN SUM(icd9_asthma)
-				ELSE 0 
-			END as sum_asthma,
-			CASE 
-				WHEN SUM(icd9_cad) > 0 
-					THEN SUM(icd9_cad)
-				ELSE 0 
-			END as sum_cad,
-			CASE 
-				WHEN SUM(icd9_chf) > 0 
-					THEN SUM(icd9_chf)
-				ELSE 0 
-			END as sum_chf,
-			CASE 
-				WHEN SUM(icd9_pvd) > 0 
-					THEN SUM(icd9_pvd)
-				ELSE 0 
-			END as sum_pvd
-		FROM (
-			SELECT *, 
-			-- Diabetes
-				CASE
-					WHEN PD.icd9code LIKE '250.40'
-						OR PD.icd9code LIKE '250.50'
-						OR PD.icd9code LIKE '250.60'
-							THEN 1
-					ELSE 0
-				END AS icd9_diabetes,
-			-- Myocardial Infarction
-				CASE
-					WHEN PD.icd9code LIKE '412%'
-						OR PD.icd9code LIKE '410%'
-							THEN 1
-					ELSE 0
-				END AS icd9_mci,
-			-- Dementia
-				CASE 
-					WHEN PD.icd9code IN (
-						'290.0',
-						'331.20',
-						'294.10'
-					) 
-					OR PD.icd9code LIKE '290.%' 
-						THEN 3
-					ELSE 0 
-				END as icd9_dementia,
-			-- Depression
-				CASE 
-					WHEN PD.icd9code IN (
-						'300.4',
-						'301.12',
-						'296.2',
-						'296.3',
-						'296.5',
-						'300.4',
-						'311'
-					) 
-					OR PD.icd9code LIKE '309.%' 
-						THEN 2
-					ELSE 0 
-				END AS icd9_depression,
-			-- Hepatitis C
-				CASE 
-					WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
-						THEN 2
-					ELSE 0 
-				END AS icd9_hepatitis_c,
-			-- Stroke
-				CASE 
-					WHEN (PD.icd9code LIKE '433.%' OR
-				PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
-						THEN 4
-					ELSE 0 
-				END AS icd9_stroke,
-			-- Asthma
-				CASE 
-					WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
-						THEN 1
-					ELSE 0 
-				END AS icd9_asthma,
-			-- CAD
-				CASE 
-					WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
-						THEN 2
-					ELSE 0 
-				END AS icd9_cad,
-			-- CHF
-				CASE 
-					WHEN PD.icd9code LIKE '428.%' OR
-					PD.icd9code IN (
-						'398.91', 
-						'402.01', 
-						'402.11', 
-						'402.91', 
-						'404.01', 
-						'404.03', 
-						'404.11', 
-						'404.13', 
-						'404.91', 
-						'404.93', 
-						'425.40', 
-						'425.50', 
-						'425.6', 
-						'425.7', 
-						'425.8', 
-						'425.9'
-					) 
-						THEN 4
-					ELSE 0 
-				END AS icd9_chf,
-			-- PVD
-				CASE 
-					WHEN PD.icd9code LIKE '441.%' 
-					OR PD.icd9code LIKE '440.%' 
-					OR PD.icd9code LIKE '443.%' 
-					or PD.icd9code LIKE '093.%' 
-					or PD.icd9code LIKE '437.3%' 
-					or PD.icd9code LIKE '447.1%' 
-					or PD.icd9code LIKE '557.1%' 
-					or PD.icd9code LIKE '557.9%' 
-					or PD.icd9code LIKE 'V43.4%' 
-						THEN 1
-					ELSE 0 
-				END AS icd9_pvd
-			FROM patient_diagnosis as PD
-		)
-		GROUP BY patientid
-	"
+    sqlStatement <- "
+        SELECT patientid,
+            CASE 
+                WHEN SUM(icd9_diabetes) > 0 
+                    THEN SUM(icd9_diabetes)
+                ELSE 0 
+            END as sum_diabetes,
+            CASE 
+                WHEN SUM(icd9_mci) > 0 
+                    THEN SUM(icd9_mci)
+                ELSE 0 
+            END as sum_mci,
+            CASE 
+                WHEN SUM(icd9_dementia) > 0 
+                    THEN SUM(icd9_dementia)
+                ELSE 0 
+            END as sum_dementia,
+            CASE 
+                WHEN SUM(icd9_depression) > 0 
+                    THEN SUM(icd9_depression)
+                ELSE 0 
+            END as sum_depression,
+            CASE 
+                WHEN SUM(icd9_stroke) > 0 
+                    THEN SUM(icd9_stroke)
+                ELSE 0 
+            END as sum_stroke,
+            CASE 
+                WHEN SUM(icd9_hepatitis_c) > 0 
+                    THEN SUM(icd9_hepatitis_c)
+                ELSE 0 
+            END as sum_hepatitis_c,
+            CASE 
+                WHEN SUM(icd9_asthma) > 0 
+                    THEN SUM(icd9_asthma)
+                ELSE 0 
+            END as sum_asthma,
+            CASE 
+                WHEN SUM(icd9_cad) > 0 
+                    THEN SUM(icd9_cad)
+                ELSE 0 
+            END as sum_cad,
+            CASE 
+                WHEN SUM(icd9_chf) > 0 
+                    THEN SUM(icd9_chf)
+                ELSE 0 
+            END as sum_chf,
+            CASE 
+                WHEN SUM(icd9_pvd) > 0 
+                    THEN SUM(icd9_pvd)
+                ELSE 0 
+            END as sum_pvd
+        FROM (
+            SELECT *, 
+            -- Diabetes
+                CASE
+                    WHEN PD.icd9code LIKE '250.40'
+                        OR PD.icd9code LIKE '250.50'
+                        OR PD.icd9code LIKE '250.60'
+                            THEN 1
+                    ELSE 0
+                END AS icd9_diabetes,
+            -- Myocardial Infarction
+                CASE
+                    WHEN PD.icd9code LIKE '412%'
+                        OR PD.icd9code LIKE '410%'
+                            THEN 1
+                    ELSE 0
+                END AS icd9_mci,
+            -- Dementia
+                CASE 
+                    WHEN PD.icd9code IN (
+                        '290.0',
+                        '331.20',
+                        '294.10'
+                    ) 
+                    OR PD.icd9code LIKE '290.%' 
+                        THEN 3
+                    ELSE 0 
+                END as icd9_dementia,
+            -- Depression
+                CASE 
+                    WHEN PD.icd9code IN (
+                        '300.4',
+                        '301.12',
+                        '296.2',
+                        '296.3',
+                        '296.5',
+                        '300.4',
+                        '311'
+                    ) 
+                    OR PD.icd9code LIKE '309.%' 
+                        THEN 2
+                    ELSE 0 
+                END AS icd9_depression,
+            -- Hepatitis C
+                CASE 
+                    WHEN PD.icd9code LIKE '070.%' AND UPPER(PD.Diagnosis_name) LIKE '%HEPATITIS C%' 
+                        THEN 2
+                    ELSE 0 
+                END AS icd9_hepatitis_c,
+            -- Stroke
+                CASE 
+                    WHEN (PD.icd9code LIKE '433.%' OR
+                PD.icd9code LIKE '434.%') AND UPPER(PD.Diagnosis_name) LIKE '%STROKE%' 
+                        THEN 4
+                    ELSE 0 
+                END AS icd9_stroke,
+            -- Asthma
+                CASE 
+                    WHEN PD.icd9code LIKE '493.%' AND UPPER(PD.Diagnosis_name) LIKE '%ASTHMA%'
+                        THEN 1
+                    ELSE 0 
+                END AS icd9_asthma,
+            -- CAD
+                CASE 
+                    WHEN PD.icd9code LIKE '410.%' AND UPPER(PD.Diagnosis_name) LIKE '%CORONARY%' 
+                        THEN 2
+                    ELSE 0 
+                END AS icd9_cad,
+            -- CHF
+                CASE 
+                    WHEN PD.icd9code LIKE '428.%' OR
+                    PD.icd9code IN (
+                        '398.91', 
+                        '402.01', 
+                        '402.11', 
+                        '402.91', 
+                        '404.01', 
+                        '404.03', 
+                        '404.11', 
+                        '404.13', 
+                        '404.91', 
+                        '404.93', 
+                        '425.40', 
+                        '425.50', 
+                        '425.6', 
+                        '425.7', 
+                        '425.8', 
+                        '425.9'
+                    ) 
+                        THEN 4
+                    ELSE 0 
+                END AS icd9_chf,
+            -- PVD
+                CASE 
+                    WHEN PD.icd9code LIKE '441.%' 
+                    OR PD.icd9code LIKE '440.%' 
+                    OR PD.icd9code LIKE '443.%' 
+                    or PD.icd9code LIKE '093.%' 
+                    or PD.icd9code LIKE '437.3%' 
+                    or PD.icd9code LIKE '447.1%' 
+                    or PD.icd9code LIKE '557.1%' 
+                    or PD.icd9code LIKE '557.9%' 
+                    or PD.icd9code LIKE 'V43.4%' 
+                        THEN 1
+                    ELSE 0 
+                END AS icd9_pvd
+            FROM patient_diagnosis as PD
+        )
+        GROUP BY patientid
+    "
 
-	# Query
-	queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
-	queryResult[1:10,]
+    # Query
+    queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+    queryResult[1:10,]
 
-	# Compute E
-	C.weight <- (
-		queryResult$sum_diabetes + 
-		queryResult$sum_mci +
-		queryResult$sum_cad + 
-		queryResult$sum_chf + 
-		queryResult$sum_asthma + 
-		queryResult$sum_hepatitis_c + 
-		queryResult$sum_dementia + 
-		queryResult$sum_stroke + 
-		queryResult$sum_depression + 
-		queryResult$sum_pvd
-	)
+    # Compute E
+    C.weight <- (
+        queryResult$sum_diabetes + 
+        queryResult$sum_mci +
+        queryResult$sum_cad + 
+        queryResult$sum_chf + 
+        queryResult$sum_asthma + 
+        queryResult$sum_hepatitis_c + 
+        queryResult$sum_dementia + 
+        queryResult$sum_stroke + 
+        queryResult$sum_depression + 
+        queryResult$sum_pvd
+    )
 
-	# Apply Max C Limit
-	queryResult$C_weight <- ifelse(C.weight >= 4, 5, C.weight)
+    # Apply Max C Limit
+    queryResult$C_weight <- ifelse(C.weight >= 4, 5, C.weight)
 
-	# Summarize Query
-	summary(queryResult)
+    # Summarize Query
+    summary(queryResult)
 
-	# Merge E Into Analytics Table
-	analytics.table <- merge(analytics.table, queryResult[c("patientid", "C_weight")], by = "patientid", all.x = TRUE)
+    # Merge E Into Analytics Table
+    analytics.table <- merge(analytics.table, queryResult[c("patientid", "C_weight")], by = "patientid", all.x = TRUE)
 
-	# How Many Rows Do We Have?
-	message("n Rows: ", dim(analytics.table)[1])
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
 
 ```
 
@@ -572,44 +572,44 @@ output: html_document
 
 ```{r}
 
-	# Compute Column E
-	sqlStatement <- "
-		SELECT patientid, 
-			CASE
-				WHEN SUM(Emergency_department) = 0
-					THEN 0
-				WHEN SUM(Emergency_department) < 5 AND SUM(Emergency_department) > 0
-					THEN SUM(Emergency_department) - 1
-				ELSE 4
-			END AS E
-		FROM (
-			SELECT PE.*,
-				CASE
-					WHEN PE.encounter_type = 48
-						THEN 1
-					ELSE 0
-				END AS Emergency_department
-			FROM patient_encounter_hosp_mod AS PEH
-			LEFT JOIN patient_encounter AS PE
-			ON PE.patientid = PEH.patientid
-				AND PE.Outcome = 'COMPLETE'
-				AND date(PE.Actual_Date) > date(PEH.Admit_date, '-180 day')
-		)
-		GROUP BY patientid
-	"
+    # Compute Column E
+    sqlStatement <- "
+        SELECT patientid, 
+            CASE
+                WHEN SUM(Emergency_department) = 0
+                    THEN 0
+                WHEN SUM(Emergency_department) < 5 AND SUM(Emergency_department) > 0
+                    THEN SUM(Emergency_department) - 1
+                ELSE 4
+            END AS E
+        FROM (
+            SELECT PE.*,
+                CASE
+                    WHEN PE.encounter_type = 48
+                        THEN 1
+                    ELSE 0
+                END AS Emergency_department
+            FROM patient_encounter_hosp_mod AS PEH
+            LEFT JOIN patient_encounter AS PE
+            ON PE.patientid = PEH.patientid
+                AND PE.Outcome = 'COMPLETE'
+                AND date(PE.Actual_Date) > date(PEH.Admit_date, '-180 day')
+        )
+        GROUP BY patientid
+    "
 
-	# Query & Verify Result
-	queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
-	queryResult[0:10,]
+    # Query & Verify Result
+    queryResult <- dbGetQuery(SQLiteConnection, sqlStatement)
+    queryResult[0:10,]
 
-	# Merge E Into Analytics Table
-	analytics.table <- merge(analytics.table, queryResult, by = "patientid", all.x = TRUE)
+    # Merge E Into Analytics Table
+    analytics.table <- merge(analytics.table, queryResult, by = "patientid", all.x = TRUE)
 
-	# Show Updated Table
-	analytics.table[0:10,]
+    # Show Updated Table
+    analytics.table[0:10,]
 
-	# Disconnect From Database
-	dbDisconnect(SQLiteConnection)
+    # Disconnect From Database
+    dbDisconnect(SQLiteConnection)
 
 ```
 
@@ -617,34 +617,34 @@ output: html_document
 
 ```{r}
 
-	analytics.table$LACE_sum <- (
-		analytics.table$L + 
-		analytics.table$A + 
-		analytics.table$C + 
-		analytics.table$E
-	)
-	analytics.table$LACE_sum_C_weight <- (
-		analytics.table$L + 
-		analytics.table$A + 
-		analytics.table$C_weight + 
-		analytics.table$E
-	)
+    analytics.table$LACE_sum <- (
+        analytics.table$L + 
+        analytics.table$A + 
+        analytics.table$C + 
+        analytics.table$E
+    )
+    analytics.table$LACE_sum_C_weight <- (
+        analytics.table$L + 
+        analytics.table$A + 
+        analytics.table$C_weight + 
+        analytics.table$E
+    )
 
-	# Show Analytics Table
-	analytics.table[1:10,]
+    # Show Analytics Table
+    analytics.table[1:10,]
 
-	# Summarize
-	summary(analytics.table)
+    # Summarize
+    summary(analytics.table)
 
-	# How Many Rows Do We Have?
-	message("n Rows: ", dim(analytics.table)[1])
+    # How Many Rows Do We Have?
+    message("n Rows: ", dim(analytics.table)[1])
 
 ```
 
 ## Dump Analytics Table to RDS
 ```{r}
 
-	# Save Analytics Table As R Data Object
-	saveRDS(analytics.table, "data/analytics.rdata")
+    # Save Analytics Table As R Data Object
+    saveRDS(analytics.table, "data/analytics.rdata")
 
 ```

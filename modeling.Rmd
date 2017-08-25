@@ -9,49 +9,49 @@ output: html_document
 
 ```{r}
 
-	set.seed(111)
+    set.seed(111)
 
-	# Load R Data
-	analytics.table <- readRDS("data/analytics.rdata")
-	# analytics.table$LACE_sum <- as.factor(analytics.table$LACE_sum)
+    # Load R Data
+    analytics.table <- readRDS("data/analytics.rdata")
+    # analytics.table$LACE_sum <- as.factor(analytics.table$LACE_sum)
 
-	# First, Partition The Data
-	data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
-	data.train <- analytics.table[data.train.indices, ]
-	data.valid <- analytics.table[-data.train.indices, ]
+    # First, Partition The Data
+    data.train.indices <- caret::createDataPartition(y = analytics.table[, dependent], p = partition, list = FALSE)
+    data.train <- analytics.table[data.train.indices, ]
+    data.valid <- analytics.table[-data.train.indices, ]
 
-	# Validate All Data Is In Train/Valid Partitions
-	stopifnot(nrow(analytics.table) == nrow(data.train) + nrow(data.valid))
+    # Validate All Data Is In Train/Valid Partitions
+    stopifnot(nrow(analytics.table) == nrow(data.train) + nrow(data.valid))
 
-	# Output n Rows For Data Set & Partitions
-	message(nrow(analytics.table), " Rows in Data")
-	message(nrow(data.train), " Rows in Training Set")
-	message(nrow(data.valid), " Rows in Validation Set")
+    # Output n Rows For Data Set & Partitions
+    message(nrow(analytics.table), " Rows in Data")
+    message(nrow(data.train), " Rows in Training Set")
+    message(nrow(data.valid), " Rows in Validation Set")
 
-	# How Well Does Just The LACE Sum Do?
-	formula <- as.formula("readmit_30 ~ LACE_sum")
-	model.readmit30.lacesum <- glm(formula, data = data.train, family = "binomial")
-	print(summary(model.readmit30.lacesum))
+    # How Well Does Just The LACE Sum Do?
+    formula <- as.formula("readmit_30 ~ LACE_sum")
+    model.readmit30.lacesum <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.lacesum))
 
-	# How About The Individual L, A, C, & E?
-	formula <- as.formula("readmit_30 ~ L + A + C + E")
-	model.readmit30.l_a_c_e <- glm(formula, data = data.train, family = "binomial")
-	print(summary(model.readmit30.l_a_c_e))
+    # How About The Individual L, A, C, & E?
+    formula <- as.formula("readmit_30 ~ L + A + C + E")
+    model.readmit30.l_a_c_e <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_c_e))
 
-	# What Model Do We Get When We Do Forward-Backward Selection of Covariates?
-	formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
-	model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
-	step(model.readmit30.l_a_c_e_lacesum)
+    # What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+    formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
+    model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
+    step(model.readmit30.l_a_c_e_lacesum)
 
-	# How About The Individual L, A, C_weighted, & E?
-	formula <- as.formula("readmit_30 ~ L + A + C_weight + E")
-	model.readmit30.l_a_cw_e <- glm(formula, data = data.train, family = "binomial")
-	print(summary(model.readmit30.l_a_cw_e))
+    # How About The Individual L, A, C_weighted, & E?
+    formula <- as.formula("readmit_30 ~ L + A + C_weight + E")
+    model.readmit30.l_a_cw_e <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cw_e))
 
-	# What Model Do We Get When We Do Forward-Backward Selection of Covariates?
-	formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
-	model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
-	print(summary(model.readmit30.l_a_cw_e))
+    # What Model Do We Get When We Do Forward-Backward Selection of Covariates?
+    formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
+    model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cw_e))
 
 ``` 
 Seems our weighting scheme hints at our lack of domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model.
@@ -62,153 +62,153 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
 
 ```{r, fig.width = 8, fig.height = 8}
 
-	# Predict On Validation Set
-	model.readmit30.l_a_c_e.probabilities <- predict(model.readmit30.l_a_c_e, data.valid, type = "response")
+    # Predict On Validation Set
+    model.readmit30.l_a_c_e.probabilities <- predict(model.readmit30.l_a_c_e, data.valid, type = "response")
 
-	# Insert Predicted Probabilities As Column Into Validation Set
-	data.valid <- data.frame(data.valid, pprobs = model.readmit30.l_a_c_e.probabilities)
+    # Insert Predicted Probabilities As Column Into Validation Set
+    data.valid <- data.frame(data.valid, pprobs = model.readmit30.l_a_c_e.probabilities)
 
-	# Plot Histogram of Predicted Probabilities
-	hist(model.readmit30.l_a_c_e.probabilities)
+    # Plot Histogram of Predicted Probabilities
+    hist(model.readmit30.l_a_c_e.probabilities)
 
-	# How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
+    # How Does The LACE Sum Perform With A Classification Of LACEsum > 10?
 
-	# Set Truth, n, & Predict At Threshold > 10
-	truth <- data.valid[, dependent]
-	n <- dim(data.valid)[1]
-	predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
+    # Set Truth, n, & Predict At Threshold > 10
+    truth <- data.valid[, dependent]
+    n <- dim(data.valid)[1]
+    predict <- ifelse(data.valid$LACE_sum > 10, 1, 0)
 
-	# Compute Confusion Matrix
-	u <- union(truth, predict)
-	predictions <- table(factor(predict, u), factor(truth, u))
-	tp <- predictions[1, 1]
-	tn <- predictions[2, 2]
-	fp <- predictions[1, 2]
-	fn <- predictions[2, 1]
+    # Compute Confusion Matrix
+    u <- union(truth, predict)
+    predictions <- table(factor(predict, u), factor(truth, u))
+    tp <- predictions[1, 1]
+    tn <- predictions[2, 2]
+    fp <- predictions[1, 2]
+    fn <- predictions[2, 1]
 
-	# Compute Statistics
-	statistics <- list()
-	statistics$n <- n
-	statistics$tp <- tp
-	statistics$tn <- tn
-	statistics$fp <- fp
-	statistics$fn <- fn
-	statistics$positive <- (tp + fn)
-	statistics$negative <- (tn + fp)
-	statistics$correct <- (tp + tn)
-	statistics$incorrect <- (fp + fn)
-	statistics$accuracy <- ((tp + tn) / n)
-	statistics$ppv <- (tp / (tp + fp))
-	statistics$npv <- (tn / (tn + fn))
-	statistics$tpr <- (tp / (tp + fn))
-	statistics$tnr <- (tn / (tn + fp))
-	statistics$fpr <- (fp / (fp + tn))
-	statistics$fnr <- (fn / (fn + tp))
-	statistics$sensitivity <- (tp / (tp + fn))
-	statistics$specificity <- (tn / (tn + fp))
+    # Compute Statistics
+    statistics <- list()
+    statistics$n <- n
+    statistics$tp <- tp
+    statistics$tn <- tn
+    statistics$fp <- fp
+    statistics$fn <- fn
+    statistics$positive <- (tp + fn)
+    statistics$negative <- (tn + fp)
+    statistics$correct <- (tp + tn)
+    statistics$incorrect <- (fp + fn)
+    statistics$accuracy <- ((tp + tn) / n)
+    statistics$ppv <- (tp / (tp + fp))
+    statistics$npv <- (tn / (tn + fn))
+    statistics$tpr <- (tp / (tp + fn))
+    statistics$tnr <- (tn / (tn + fp))
+    statistics$fpr <- (fp / (fp + tn))
+    statistics$fnr <- (fn / (fn + tp))
+    statistics$sensitivity <- (tp / (tp + fn))
+    statistics$specificity <- (tn / (tn + fp))
 
-	# Compute ROC Curve
-	roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
-	roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
+    # Compute ROC Curve
+    roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
+    roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
 
-	# Plot ROC Curve
-	plot(roc.performance, measure = "tpr", x.measure = "fpr")
-	title("ROC For readmit30 ~ L + A + C + E Model")
+    # Plot ROC Curve
+    plot(roc.performance, measure = "tpr", x.measure = "fpr")
+    title("ROC For readmit30 ~ L + A + C + E Model")
 
-	# Compute AUC
-	roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
+    # Compute AUC
+    roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
 
-	# Print Results
-	message("Accuracy: ", statistics$accuracy)
-	message("Sensitivity: ", statistics$sensitivity)
-	message("Specificity: ", statistics$specificity)
-	message("Correct: ", statistics$correct)
-	message("Incorrect: ", statistics$incorrect)
-	message("n: ", statistics$n)
-	message("AUC: ", roc.auc)
+    # Print Results
+    message("Accuracy: ", statistics$accuracy)
+    message("Sensitivity: ", statistics$sensitivity)
+    message("Specificity: ", statistics$specificity)
+    message("Correct: ", statistics$correct)
+    message("Incorrect: ", statistics$incorrect)
+    message("n: ", statistics$n)
+    message("AUC: ", roc.auc)
 
 ```
 ## First A Function Definition Then Some Questions
 ```{r}
 
-	# Find Best Probability Threshold By Measure Tradeoff
-	# Valid Measures Are Any Two
-	# > tpr
-	# > tnr
-	# > fpr
-	# > fnr
-	# > sensitivity
-	# > specificity
-	maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
-		
-		truth <- data[, dependent]
-		thresholds <- seq(0.0, 1.0, by = by)
-		nThresholds <- length(thresholds)
-		l <- rep(1, nThresholds)
-		n <- dim(data)[1]
-		statistics <- list(
-			"tpr" = l,
-			"fpr" = l,
-			"tnr" = l,
-			"fnr" = l,
-			"ppv" = l,
-			"npv" = l,
-			"sensitivity" = l,
-			"specificity" =l,
-			"accuracy" = l,
-			"positive" = l,
-			"negative" = l,
-			"correct" = l,
-			"incorrect" = l
-		)
-		report <- list()
-		# Iterate Through Thresholds & Find Best Threshold
-		for (i in 1:nThresholds) {
-			threshold <- thresholds[i]
-			probabilities <- predict(model, data, type = "response")
-			predict <- ifelse(probabilities < threshold, 0, 1)
-			u <- union(truth, predict)
-			predictions <- table(factor(predict, u), factor(truth, u))
-		 	tp <- predictions[1, 1]
-		 	tn <- predictions[2, 2]
-		 	fp <- predictions[1, 2]
-		 	fn <- predictions[2, 1]
-		 	positive <- tp + tn
-		 	negative <- fp + fn
-		 	# Generate Statistics
-		 	statistics$thresholds <- thresholds
-			statistics$tp[i] <- tp
-			statistics$tn[i] <- tn
-			statistics$fp[i] <- fp
-			statistics$fn[i] <- fn
-			statistics$positive[i] <- (tp + fn)
-			statistics$negative[i] <- (tn + fp)
-			statistics$correct[i] <- (tp + tn)
-			statistics$incorrect[i] <- (fp + fn)
-			statistics$accuracy[i] <- ((tp + tn) / n)
-			statistics$ppv[i] <- (tp / (tp + fp))
-			statistics$npv[i] <- (tn / (tn + fn))
-			statistics$tpr[i] <- (tp / (tp + fn))
-			statistics$tnr[i] <- (tn / (tn + fp))
-			statistics$fpr[i] <- (fp / (fp + tn))
-			statistics$fnr[i] <- (fn / (fn + tp))
-			statistics$sensitivity[i] <- (tp / (tp + fn))
-			statistics$specificity[i] <- (tn / (tn + fp))
-		}
-		report["index"] <- which.max(statistics[[m1]] + statistics[[m2]])
-		report["threshold"] <- thresholds[report[["index"]]]
-		report["accuracy"] <- statistics[["accuracy"]][report[["index"]]]
-		report["correct"] <- statistics[["correct"]][report[["index"]]]
-		report["incorrect"] <- statistics[["incorrect"]][report[["index"]]]
-		report[[m1]] <- statistics[[m1]][report[["index"]]]
-		report[[m2]] <- statistics[[m2]][report[["index"]]]
-		report["n"] <- n
-		result <- list(
-			report = report,
-			stats = statistics
-		)
-		result
-	}
+    # Find Best Probability Threshold By Measure Tradeoff
+    # Valid Measures Are Any Two
+    # > tpr
+    # > tnr
+    # > fpr
+    # > fnr
+    # > sensitivity
+    # > specificity
+    maximizeByThreshold <- function (model, data, dependent, m1 = "sensitivity", m2 = "specificity", by = 0.001) {
+        
+        truth <- data[, dependent]
+        thresholds <- seq(0.0, 1.0, by = by)
+        nThresholds <- length(thresholds)
+        l <- rep(1, nThresholds)
+        n <- dim(data)[1]
+        statistics <- list(
+            "tpr" = l,
+            "fpr" = l,
+            "tnr" = l,
+            "fnr" = l,
+            "ppv" = l,
+            "npv" = l,
+            "sensitivity" = l,
+            "specificity" =l,
+            "accuracy" = l,
+            "positive" = l,
+            "negative" = l,
+            "correct" = l,
+            "incorrect" = l
+        )
+        report <- list()
+        # Iterate Through Thresholds & Find Best Threshold
+        for (i in 1:nThresholds) {
+            threshold <- thresholds[i]
+            probabilities <- predict(model, data, type = "response")
+            predict <- ifelse(probabilities < threshold, 0, 1)
+            u <- union(truth, predict)
+            predictions <- table(factor(predict, u), factor(truth, u))
+            tp <- predictions[1, 1]
+            tn <- predictions[2, 2]
+            fp <- predictions[1, 2]
+            fn <- predictions[2, 1]
+            positive <- tp + tn
+            negative <- fp + fn
+            # Generate Statistics
+            statistics$thresholds <- thresholds
+            statistics$tp[i] <- tp
+            statistics$tn[i] <- tn
+            statistics$fp[i] <- fp
+            statistics$fn[i] <- fn
+            statistics$positive[i] <- (tp + fn)
+            statistics$negative[i] <- (tn + fp)
+            statistics$correct[i] <- (tp + tn)
+            statistics$incorrect[i] <- (fp + fn)
+            statistics$accuracy[i] <- ((tp + tn) / n)
+            statistics$ppv[i] <- (tp / (tp + fp))
+            statistics$npv[i] <- (tn / (tn + fn))
+            statistics$tpr[i] <- (tp / (tp + fn))
+            statistics$tnr[i] <- (tn / (tn + fp))
+            statistics$fpr[i] <- (fp / (fp + tn))
+            statistics$fnr[i] <- (fn / (fn + tp))
+            statistics$sensitivity[i] <- (tp / (tp + fn))
+            statistics$specificity[i] <- (tn / (tn + fp))
+        }
+        report["index"] <- which.max(statistics[[m1]] + statistics[[m2]])
+        report["threshold"] <- thresholds[report[["index"]]]
+        report["accuracy"] <- statistics[["accuracy"]][report[["index"]]]
+        report["correct"] <- statistics[["correct"]][report[["index"]]]
+        report["incorrect"] <- statistics[["incorrect"]][report[["index"]]]
+        report[[m1]] <- statistics[[m1]][report[["index"]]]
+        report[[m2]] <- statistics[[m2]][report[["index"]]]
+        report["n"] <- n
+        result <- list(
+            report = report,
+            stats = statistics
+        )
+        result
+    }
 
 ```
 ## What Threshold Maximizes The Sum of Sensitivity + Specificity?
@@ -216,20 +216,20 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
 
 ```{r}
 
-	# Get Optimal From model.readmit30.l_a_c_e
-	optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
+    # Get Optimal From model.readmit30.l_a_c_e
+    optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30")
 
-	# Plot AUC
-	plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
+    # Plot AUC
+    plot(optimal.l_a_c_e$stats[["sensitivity"]], optimal.l_a_c_e$stats[["specificity"]])
 
-	# Output By Optimal Sum of Sensitivity And Sensitivity
-	message("Threshold: ", optimal.l_a_c_e$report["threshold"])
-	message("Accuracy: ", optimal.l_a_c_e$report["accuracy"])
-	message("Sensitivity: ", optimal.l_a_c_e$report["sensitivity"])
-	message("Specificity: ", optimal.l_a_c_e$report["specificity"])
-	message("Correct: ", optimal.l_a_c_e$report["correct"])
-	message("Incorrect: ", optimal.l_a_c_e$report["incorrect"])
-	message("n: ", optimal.l_a_c_e$report["n"])
+    # Output By Optimal Sum of Sensitivity And Sensitivity
+    message("Threshold: ", optimal.l_a_c_e$report["threshold"])
+    message("Accuracy: ", optimal.l_a_c_e$report["accuracy"])
+    message("Sensitivity: ", optimal.l_a_c_e$report["sensitivity"])
+    message("Specificity: ", optimal.l_a_c_e$report["specificity"])
+    message("Correct: ", optimal.l_a_c_e$report["correct"])
+    message("Incorrect: ", optimal.l_a_c_e$report["incorrect"])
+    message("n: ", optimal.l_a_c_e$report["n"])
 
 ```
 
@@ -237,17 +237,17 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Maximizing Detection?
 ```{r}
 
-	# Output By Optimal Accuracy + Sensitivity
-	idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["sensitivity"]])
-	message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
-	message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
-	message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
-	message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
-	message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
-	message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
-	message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
-	message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
-	message("n: ", optimal.l_a_c_e$report["n"])
+    # Output By Optimal Accuracy + Sensitivity
+    idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["sensitivity"]])
+    message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
+    message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
+    message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
+    message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
+    message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
+    message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
+    message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
+    message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
+    message("n: ", optimal.l_a_c_e$report["n"])
 
 ```
 
@@ -255,16 +255,16 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?
 ```{r}
 
-	# Output By Optimal Accuracy + Specificity
-	idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["specificity"]])
-	message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
-	message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
-	message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
-	message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
-	message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
-	message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
-	message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
-	message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
-	message("n: ", optimal.l_a_c_e$report["n"])
+    # Output By Optimal Accuracy + Specificity
+    idx <- which.max(optimal.l_a_c_e$stats[["accuracy"]] + optimal.l_a_c_e$stats[["specificity"]])
+    message("Best Accuracy: ", optimal.l_a_c_e$stats[["accuracy"]][idx])
+    message("Threshold: ", optimal.l_a_c_e$stats[["thresholds"]][idx])
+    message("Correct: ", optimal.l_a_c_e$stats[["correct"]][idx])
+    message("Incorrect: ", optimal.l_a_c_e$stats[["incorrect"]][idx])
+    message("Sensitivity: ", optimal.l_a_c_e$stats[["sensitivity"]][idx])
+    message("Specificity: ", optimal.l_a_c_e$stats[["specificity"]][idx])
+    message("FPR: ", optimal.l_a_c_e$stats[["fpr"]][idx])
+    message("FNR: ", optimal.l_a_c_e$stats[["fnr"]][idx])
+    message("n: ", optimal.l_a_c_e$report["n"])
 
 ```

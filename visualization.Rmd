@@ -1,0 +1,117 @@
+---
+title: "Visualizations"
+author: "LACE Group"
+date: "8/24/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(pROC)
+library(e1071)
+library(caret)
+analytics <- readRDS("data/analytics.rdata")
+
+# Add back in zero values?
+# analytics[is.na(analytics$E),] <- 0
+# analytics$LACE_sum <- apply(analytics[,c("L","A","C","E")], MARGIN = 1, sum)
+
+```
+
+## Histograms
+
+Number of patients with a given LACE score:
+
+```{r histograms}
+
+# Basic Histogram
+hist(analytics$LACE_sum,
+     xlab="LACE Score",
+     ylab="Number of Patients",
+     main="Number of Patients by LACE Score")
+
+# Histogram with Readmit30 cases highlighted
+ggplot(analytics,aes(x=LACE_sum,group=factor(readmit_30),fill=factor(readmit_30))) +
+  geom_histogram(binwidth=1) + 
+  ggtitle("Readmit30 by LACE Score") + 
+  ylab("Count") + 
+  xlab("LACE Score")
+
+# Plot of number of Readmit30 cases alone
+barplot(tapply(X=analytics$readmit_30, 
+               INDEX=analytics$LACE_sum, 
+               FUN=sum),
+        main="Number of Readmit30 Patients by LACE Score",
+        xlab="LACE Score",
+        ylab="Number of Patients")
+
+# Plot of proportion of cases that are readmit30 by LACE score
+plot(tapply(X=analytics$readmit_30,
+            INDEX=analytics$LACE_sum,
+            FUN=sum)/
+       table(analytics$LACE_sum),
+     type="l",
+     ylab="Proportion of Patients",
+     xlab="LACE Score",
+     main="Proportion of Patients with Readmit30 by LACE Score")
+
+```
+
+## AUC For Naive LACE Threshold
+
+```{r threshold}
+# index <- seq(0,max(analytics$LACE_sum,na.rm=TRUE),.05)
+# 
+# accuracy <- matrix(0,length(index),3)
+# 
+# for(i in index) {
+#   pred <- ifelse(analytics$LACE_sum > i, 1, 0)
+#   truth <- analytics$readmit_30
+#   cm <- table(truth,pred)
+#   tpr <- cm[2,2]/(cm[2,2] + cm[1,2]) # tpr = tp / (tp + fn)
+#   fpr <- cm[2,1]/(cm[2,1] + cm[1,1]) # fpr = fp / (fp + tn)
+#   
+#   accuracy[which(index == i),1] <- i
+#   accuracy[which(index == i),2] <- tpr
+#   accuracy[which(index == i),3] <- tpr
+# }
+
+# Calculation of AUC at a number of threshold values
+index <- 1:max(analytics$LACE_sum,na.rm=TRUE)
+r30auc <- matrix(0,length(index),2)
+
+for(i in index) {
+  roc_obj <- roc(analytics$readmit_30, ifelse(analytics$LACE_sum > i, 1, 0))
+  r30auc[which(index == i),1] <- i
+  r30auc[which(index == i),2] <- roc_obj$auc
+}
+
+# Plot seems to indiciate ideal value for us is closer to 7... Very different.
+plot(r30auc,
+     type="b",
+     main="AUC by LACE Threshold",
+     xlab="LACE Score Threshold",
+     ylab="AUC")
+
+```
+
+## SVM Implementation
+
+```{r svm}
+# Divide training and test data
+set.seed(10501)
+trainingIndices <- createDataPartition(y = analytics$readmit_30, p=.80, list=FALSE)
+training <- analytics[trainingIndices,]
+test <- analytics[-trainingIndices,]
+
+# Incomplete rows have to be discarded for test data to work correctly
+test <- test[complete.cases(test),] 
+
+r30svm <- svm(readmit_30 ~ L + A + C + E, data=training)
+svmPredicted <- predict(r30svm, newdata = test)
+svmResult <- cbind(test,svmPredicted)
+
+ggplot(svmResult, aes(x=LACE_sum, y=svmPredicted, color=readmit_30, fill=readmit_30)) + geom_jitter()
+confusionMatrix(test$readmit_30, ifelse(svmResult$svmPredicted >= .85, 1, 0))
+```

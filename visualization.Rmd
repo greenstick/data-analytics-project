@@ -114,4 +114,7 @@ svmResult <- cbind(test,svmPredicted)
 
 ggplot(svmResult, aes(x=LACE_sum, y=svmPredicted, color=readmit_30, fill=readmit_30)) + geom_jitter()
 confusionMatrix(test$readmit_30, ifelse(svmResult$svmPredicted >= .85, 1, 0))
+
+svm_roc <- roc(test$readmit_30, ifelse(svmResult$svmPredicted >= .65, 1, 0))
+svm_roc$auc
 ```

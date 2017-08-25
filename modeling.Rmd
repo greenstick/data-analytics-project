@@ -111,12 +111,11 @@ The Akaike Information Criteria (AIC) is lowest for the individual L, A, C, & E 
     roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
     roc.performance <- ROCR::performance(roc.prediction, measure = "tpr", x.measure = "fpr")
 
-    # Plot ROC Curve
-    plot(roc.performance, measure = "tpr", x.measure = "fpr")
-    title("ROC For readmit30 ~ L + A + C + E Model")
-
     # Compute AUC
     roc.auc <- ROCR::performance(roc.prediction, measure = "auc")@y.values
+
+    plot(roc.performance, measure = "tpr", x.measure = "fpr")
+    title(paste("ROC For readmit30 ~ L + A + C + E Model (AUC = ", round(as.numeric(roc.auc), 4), ")", sep = ""))
 
     # Print Results
     message("Accuracy: ", statistics$accuracy)

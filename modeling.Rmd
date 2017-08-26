@@ -401,7 +401,7 @@ To maximize the sum of sensitivity and specificity, the optimal threshold was fo
 
 ```
 
-This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is not good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentiall could be tuned further. 
+This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentially could be tuned further. 
 
 ### For The L + A + C + E Model, What Threshold Maximizes The Sum of Accuracy + Specificity?
 #### i.e. How Can We Maximize Overall Accuracy With A Preference Toward Minimizing Utilization?

@@ -32,7 +32,10 @@ hist(analytics$LACE_sum,
      main="Number of Patients by LACE Score")
 
 # Histogram with Readmit30 cases highlighted
-ggplot(analytics,aes(x=LACE_sum,group=factor(readmit_30),fill=factor(readmit_30))) +
+hist.data <- analytics
+hist.data$readmit_30 <- factor(hist.data$readmit_30)
+levels(hist.data$readmit_30) <- c("False","True")
+ggplot(hist.data,aes(x=LACE_sum,group=readmit_30,fill=readmit_30)) +
   geom_histogram(binwidth=1) + 
   ggtitle("Readmit30 by LACE Score") + 
   ylab("Count") + 

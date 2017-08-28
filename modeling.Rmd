@@ -9,6 +9,17 @@ output: html_document
 
 ```{r}
 
+    # Global References
+    seed            <- 111
+    partition       <- 0.8
+    dependent       <- "readmit_30"
+    database.name   <- "db/patient.sqlite"  # Database name
+    data.dir        <- "data/raw/"          # Data file directory
+    data.format     <- ".txt"               # Data file format
+    data.overwrite  <- TRUE                 # Helps on development, but not something to default to TRUE
+    data.frames     <- list()
+
+    # Seed PRNG
     set.seed(111)
 
     # Load R Data
@@ -56,7 +67,7 @@ LACE sum model works respectably.
     # How About The Individual L, A, C, & E + LACE Sum?
     formula <- as.formula("readmit_30 ~ L + A + C + E + LACE_sum")
     model.readmit30.l_a_c_e_lacesum <- glm(formula, data = data.train, family = "binomial")
-    print(summary(model.readmit30.l_a_cwc_e))
+    print(summary(model.readmit30.l_a_c_e_lacesum))
 
 ```
 As hypothesized, the model with broken out values performs a little better than the LACE sum model.
@@ -72,8 +83,8 @@ As hypothesized, the model with broken out values performs a little better than 
 
     # How About The Individual L, A, C_weight, & E + LAC_wE Sum?
     formula <- as.formula("readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight")
-    model.readmit30.l_a_cw_e_lacesumw <- glm(formula, data = data.train, family = "binomial")
-    print(summary(model.readmit30.l_a_cwc_e))
+    model.readmit30.l_a_cw_e_lacesum_cw <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cw_e_lacesum_cw))
 
 ```
 
@@ -90,14 +101,14 @@ And...our weighting scheme removes all significance of C. It was naïve afterall
 
     # How About The Individual L, A, C_weight_cut, & E + LAC_wcE Sum?
     formula <- as.formula("readmit_30 ~ L + A + C_weight_cut + E + LACE_sum_C_weight_cut")
-    model.readmit30.l_a_cw_e_lacesumwc <- glm(formula, data = data.train, family = "binomial")
-    print(summary(model.readmit30.l_a_cw_e_lacesumwc))
+    model.readmit30.l_a_cwc_e_lacesum_cwc <- glm(formula, data = data.train, family = "binomial")
+    print(summary(model.readmit30.l_a_cwc_e_lacesum_cwc))
 
 ``` 
 
 And the cutoff further diminishes the already insignificant weighted C. 
 
-Well, it seems our weighting scheme is a case study on one developed by a person lacking in domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).
+Well, it seems our weighting scheme is an example of one developed by a person lacking in domain expertise...whoops! We can stick with the standard `model.readmit30.l_a_c_e` model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).
 
 ## Problem Set 2 – Selected Model (L + A + C + E) Analyses
 
@@ -261,7 +272,7 @@ Good accuracy (72.06%)...but low sensitivity (32.83%), the accuracy is largely c
 ```{r, fig.width = 6, fig.height = 6}
 
     # Get Optimal Probability Threshold
-    optimal.lacesum <- bestThreshold(model.readmit30.lacesum, data.valid, "readmit_30", by = 0.001)
+    optimal.lacesum <- maximizeByThreshold(model.readmit30.lacesum, data.valid, "readmit_30", by = 0.001)
 
     # Predict On Validation Set
     model.readmit30.lacesum.probabilities <- predict(model.readmit30.lacesum, data.valid, type = "response")
@@ -348,7 +359,7 @@ And if we wanted to clamp down on utilization in the short term, well, this mode
 ```{r, fig.width = 6, fig.height = 6}
 
     # Get Optimal From model.readmit30.l_a_c_e
-    optimal.l_a_c_e <- bestThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30", by = 0.001)
+    optimal.l_a_c_e <- maximizeByThreshold(model.readmit30.l_a_c_e, data.valid, "readmit_30", by = 0.001)
 
     # Compute ROC Curve
     roc.prediction <- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])

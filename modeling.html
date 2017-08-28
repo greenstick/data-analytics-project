@@ -125,7 +125,18 @@ $(document).ready(function () {
 
 <div id="problem-set-2---lets-get-logistical" class="section level1">
 <h1>Problem Set 2 - Let’s Get Logistical</h1>
-<pre class="r"><code>    set.seed(111)
+<pre class="r"><code>    # Global References
+    seed            &lt;- 111
+    partition       &lt;- 0.8
+    dependent       &lt;- &quot;readmit_30&quot;
+    database.name   &lt;- &quot;db/patient.sqlite&quot;  # Database name
+    data.dir        &lt;- &quot;data/raw/&quot;          # Data file directory
+    data.format     &lt;- &quot;.txt&quot;               # Data file format
+    data.overwrite  &lt;- TRUE                 # Helps on development, but not something to default to TRUE
+    data.frames     &lt;- list()
+
+    # Seed PRNG
+    set.seed(111)
 
     # Load R Data
     analytics.table &lt;- readRDS(&quot;data/analytics.rdata&quot;)
@@ -214,31 +225,32 @@ $(document).ready(function () {
 <pre class="r"><code>    # How About The Individual L, A, C, &amp; E + LACE Sum?
     formula &lt;- as.formula(&quot;readmit_30 ~ L + A + C + E + LACE_sum&quot;)
     model.readmit30.l_a_c_e_lacesum &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
-    print(summary(model.readmit30.l_a_cwc_e))</code></pre>
+    print(summary(model.readmit30.l_a_c_e_lacesum))</code></pre>
 <pre><code>## 
 ## Call:
 ## glm(formula = formula, family = &quot;binomial&quot;, data = data.train)
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -2.1555  -0.5472  -0.4011  -0.2870   2.7057  
+## -2.1807  -0.5385  -0.3967  -0.2950   2.7330  
 ## 
-## Coefficients:
-##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept)  -3.634251   0.071179 -51.058   &lt;2e-16 ***
-## L             0.229824   0.011217  20.489   &lt;2e-16 ***
-## A             0.231973   0.013413  17.295   &lt;2e-16 ***
-## C_weight_cut  0.001103   0.010216   0.108    0.914    
-## E             0.885988   0.018751  47.249   &lt;2e-16 ***
+## Coefficients: (1 not defined because of singularities)
+##             Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -3.71036    0.06841 -54.234   &lt;2e-16 ***
+## L            0.23018    0.01122  20.515   &lt;2e-16 ***
+## A            0.23258    0.01342  17.335   &lt;2e-16 ***
+## C            0.04576    0.01869   2.449   0.0143 *  
+## E            0.88611    0.01876  47.244   &lt;2e-16 ***
+## LACE_sum          NA         NA      NA       NA    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
 ##     Null deviance: 20352  on 24180  degrees of freedom
-## Residual deviance: 17148  on 24176  degrees of freedom
+## Residual deviance: 17142  on 24176  degrees of freedom
 ##   (3445 observations deleted due to missingness)
-## AIC: 17158
+## AIC: 17152
 ## 
 ## Number of Fisher Scoring iterations: 5</code></pre>
 <p>As hypothesized, the model with broken out values performs a little better than the LACE sum model.</p>
@@ -277,32 +289,33 @@ $(document).ready(function () {
 ## Number of Fisher Scoring iterations: 5</code></pre>
 <pre class="r"><code>    # How About The Individual L, A, C_weight, &amp; E + LAC_wE Sum?
     formula &lt;- as.formula(&quot;readmit_30 ~ L + A + C_weight + E + LACE_sum_C_weight&quot;)
-    model.readmit30.l_a_cw_e_lacesumw &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
-    print(summary(model.readmit30.l_a_cwc_e))</code></pre>
+    model.readmit30.l_a_cw_e_lacesum_cw &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
+    print(summary(model.readmit30.l_a_cw_e_lacesum_cw))</code></pre>
 <pre><code>## 
 ## Call:
 ## glm(formula = formula, family = &quot;binomial&quot;, data = data.train)
 ## 
 ## Deviance Residuals: 
 ##     Min       1Q   Median       3Q      Max  
-## -2.1555  -0.5472  -0.4011  -0.2870   2.7057  
+## -2.1692  -0.5410  -0.4011  -0.2934   2.7263  
 ## 
-## Coefficients:
-##               Estimate Std. Error z value Pr(&gt;|z|)    
-## (Intercept)  -3.634251   0.071179 -51.058   &lt;2e-16 ***
-## L             0.229824   0.011217  20.489   &lt;2e-16 ***
-## A             0.231973   0.013413  17.295   &lt;2e-16 ***
-## C_weight_cut  0.001103   0.010216   0.108    0.914    
-## E             0.885988   0.018751  47.249   &lt;2e-16 ***
+## Coefficients: (1 not defined because of singularities)
+##                    Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)       -3.691725   0.069301 -53.271   &lt;2e-16 ***
+## L                  0.230128   0.011219  20.513   &lt;2e-16 ***
+## A                  0.232404   0.013416  17.323   &lt;2e-16 ***
+## C_weight           0.015393   0.008678   1.774   0.0761 .  
+## E                  0.885981   0.018752  47.248   &lt;2e-16 ***
+## LACE_sum_C_weight        NA         NA      NA       NA    
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
 ## (Dispersion parameter for binomial family taken to be 1)
 ## 
 ##     Null deviance: 20352  on 24180  degrees of freedom
-## Residual deviance: 17148  on 24176  degrees of freedom
+## Residual deviance: 17145  on 24176  degrees of freedom
 ##   (3445 observations deleted due to missingness)
-## AIC: 17158
+## AIC: 17155
 ## 
 ## Number of Fisher Scoring iterations: 5</code></pre>
 <p>And…our weighting scheme removes all significance of C. It was naïve afterall.</p>
@@ -341,8 +354,8 @@ $(document).ready(function () {
 ## Number of Fisher Scoring iterations: 5</code></pre>
 <pre class="r"><code>    # How About The Individual L, A, C_weight_cut, &amp; E + LAC_wcE Sum?
     formula &lt;- as.formula(&quot;readmit_30 ~ L + A + C_weight_cut + E + LACE_sum_C_weight_cut&quot;)
-    model.readmit30.l_a_cw_e_lacesumwc &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
-    print(summary(model.readmit30.l_a_cw_e_lacesumwc))</code></pre>
+    model.readmit30.l_a_cwc_e_lacesum_cwc &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
+    print(summary(model.readmit30.l_a_cwc_e_lacesum_cwc))</code></pre>
 <pre><code>## 
 ## Call:
 ## glm(formula = formula, family = &quot;binomial&quot;, data = data.train)
@@ -528,7 +541,7 @@ $(document).ready(function () {
 <div id="i.e.assuming-utilization-detection-operate-on-a-uniform-spectrum-how-can-we-maximize-detection-while-minimizing-utilization" class="section level4">
 <h4>i.e. Assuming Utilization &amp; Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?</h4>
 <pre class="r"><code>    # Get Optimal Probability Threshold
-    optimal.lacesum &lt;- bestThreshold(model.readmit30.lacesum, data.valid, &quot;readmit_30&quot;, by = 0.001)
+    optimal.lacesum &lt;- maximizeByThreshold(model.readmit30.lacesum, data.valid, &quot;readmit_30&quot;, by = 0.001)
 
     # Predict On Validation Set
     model.readmit30.lacesum.probabilities &lt;- predict(model.readmit30.lacesum, data.valid, type = &quot;response&quot;)
@@ -632,7 +645,7 @@ $(document).ready(function () {
 <div id="i.e.assuming-utilization-detection-operate-on-a-uniform-spectrum-how-can-we-maximize-detection-while-minimizing-utilization-1" class="section level4">
 <h4>i.e. Assuming Utilization &amp; Detection Operate On A Uniform Spectrum, How Can We Maximize Detection While Minimizing Utilization?</h4>
 <pre class="r"><code>    # Get Optimal From model.readmit30.l_a_c_e
-    optimal.l_a_c_e &lt;- bestThreshold(model.readmit30.l_a_c_e, data.valid, &quot;readmit_30&quot;, by = 0.001)
+    optimal.l_a_c_e &lt;- maximizeByThreshold(model.readmit30.l_a_c_e, data.valid, &quot;readmit_30&quot;, by = 0.001)
 
     # Compute ROC Curve
     roc.prediction &lt;- ROCR::prediction(model.readmit30.l_a_c_e.probabilities, data.valid[, dependent])
@@ -696,7 +709,7 @@ $(document).ready(function () {
 ## FPR: 0.456709956709957
 ## FNR: 0.166309012875536
 ## n: 6906</code></pre>
-<p>This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is not good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentiall could be tuned further.</p>
+<p>This is pretty good. Here I aimed to find the probability threshold that maximized the sum of accuracy + sensitivity (9.8% probability of readmission within 30 days). While the accuracy is still not great (marginally better than a coin toss), the sensitivity of the model is good (83.36%) and the specificity is still existent (54.32%). This model would likely be the best of the ones outlined in this document in terms of real implementation, although it potentially could be tuned further.</p>
 </div>
 </div>
 <div id="for-the-l-a-c-e-model-what-threshold-maximizes-the-sum-of-accuracy-specificity" class="section level3">

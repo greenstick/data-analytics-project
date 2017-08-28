@@ -127,13 +127,38 @@ $(document).ready(function () {
 <h4>Setup</h4>
 <pre class="r"><code>    # Load Libraries
     library(RSQLite)
-    library(zoo)
-    library(tidyverse)
-    library(broom)
-    library(caret)
-    library(ROCR)
-
-    # Global References
+    library(zoo)</code></pre>
+<pre><code>## 
+## Attaching package: 'zoo'</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     as.Date, as.Date.numeric</code></pre>
+<pre class="r"><code>    library(tidyverse)</code></pre>
+<pre><code>## Loading tidyverse: ggplot2
+## Loading tidyverse: tibble
+## Loading tidyverse: tidyr
+## Loading tidyverse: readr
+## Loading tidyverse: purrr
+## Loading tidyverse: dplyr</code></pre>
+<pre><code>## Conflicts with tidy packages ----------------------------------------------</code></pre>
+<pre><code>## filter(): dplyr, stats
+## lag():    dplyr, stats</code></pre>
+<pre class="r"><code>    library(broom)
+    library(caret)</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre><code>## 
+## Attaching package: 'caret'</code></pre>
+<pre><code>## The following object is masked from 'package:purrr':
+## 
+##     lift</code></pre>
+<pre class="r"><code>    library(ROCR)</code></pre>
+<pre><code>## Loading required package: gplots</code></pre>
+<pre><code>## 
+## Attaching package: 'gplots'</code></pre>
+<pre><code>## The following object is masked from 'package:stats':
+## 
+##     lowess</code></pre>
+<pre class="r"><code>    # Global References
     seed            &lt;- 111
     partition       &lt;- 0.8
     dependent       &lt;- &quot;readmit_30&quot;
@@ -142,6 +167,9 @@ $(document).ready(function () {
     data.format     &lt;- &quot;.txt&quot;               # Data file format
     data.overwrite  &lt;- TRUE                 # Helps on development, but not something to default to TRUE
     data.frames     &lt;- list()
+
+    # Seed PRNG
+    set.seed(111)
 
     # Connect to SQLite DB
     SQLiteConnection &lt;- dbConnect(drv = SQLite(), dbname = database.name)
@@ -596,9 +624,9 @@ $(document).ready(function () {
 ##  Max.   :1.000000   Max.   :1.0000   Max.   :1.0000   Max.   :5.000  
 ## </code></pre>
 <pre class="r"><code>    # Merge E Into Analytics Table
-    analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)
-
-    # How Many Rows Do We Have?
+    analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)</code></pre>
+<pre><code>## Warning: call dbDisconnect() when finished working with a connection</code></pre>
+<pre class="r"><code>    # How Many Rows Do We Have?
     message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
 </div>

@@ -33,6 +33,9 @@ output: html_document
     data.overwrite  <- TRUE                 # Helps on development, but not something to default to TRUE
     data.frames     <- list()
 
+    # Seed PRNG
+    set.seed(111)
+
     # Connect to SQLite DB
     SQLiteConnection <- dbConnect(drv = SQLite(), dbname = database.name)
 

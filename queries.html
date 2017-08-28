@@ -624,9 +624,9 @@ $(document).ready(function () {
 ##  Max.   :1.000000   Max.   :1.0000   Max.   :1.0000   Max.   :5.000  
 ## </code></pre>
 <pre class="r"><code>    # Merge E Into Analytics Table
-    analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)</code></pre>
-<pre><code>## Warning: call dbDisconnect() when finished working with a connection</code></pre>
-<pre class="r"><code>    # How Many Rows Do We Have?
+    analytics.table &lt;- merge(analytics.table, queryResult[c(&quot;patientid&quot;, &quot;C&quot;)], by = &quot;patientid&quot;, all.x = TRUE)
+
+    # How Many Rows Do We Have?
     message(&quot;n Rows: &quot;, dim(analytics.table)[1])</code></pre>
 <pre><code>## n Rows: 34532</code></pre>
 </div>

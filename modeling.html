@@ -194,8 +194,9 @@ $(document).ready(function () {
 <h2>Problem Set 2 – L + A + C + E Model</h2>
 <pre class="r"><code>    # How About The Individual L, A, C, &amp; E?
     formula &lt;- as.formula(&quot;readmit_30 ~ L + A + C + E&quot;)
-    model.readmit30.l_a_c_e &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)
-    print(summary(model.readmit30.l_a_c_e))</code></pre>
+    model.readmit30.l_a_c_e &lt;- glm(formula, data = data.train, family = &quot;binomial&quot;)</code></pre>
+<pre><code>## Warning: call dbDisconnect() when finished working with a connection</code></pre>
+<pre class="r"><code>    print(summary(model.readmit30.l_a_c_e))</code></pre>
 <pre><code>## 
 ## Call:
 ## glm(formula = formula, family = &quot;binomial&quot;, data = data.train)
@@ -384,7 +385,7 @@ $(document).ready(function () {
 ## 
 ## Number of Fisher Scoring iterations: 5</code></pre>
 <p>And the cutoff further diminishes the already insignificant weighted C.</p>
-<p>Well, it seems our weighting scheme is a case study on one developed by a person lacking in domain expertise…whoops! We can stick with the standard <code>model.readmit30.l_a_c_e</code> model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).</p>
+<p>Well, it seems our weighting scheme is an example of one developed by a person lacking in domain expertise…whoops! We can stick with the standard <code>model.readmit30.l_a_c_e</code> model, which has the lowest Akaike information criterion score (AIC = 17152). We can compare it to the simple LACE Sum model, which has a higher AIC (18508).</p>
 </div>
 <div id="problem-set-2-selected-model-l-a-c-e-analyses" class="section level2">
 <h2>Problem Set 2 – Selected Model (L + A + C + E) Analyses</h2>
